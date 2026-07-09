@@ -7,6 +7,8 @@ use std::{cell::RefCell, rc::Rc};
 mod constants;
 mod utils;
 
+use constants::css_classes;
+
 fn main() -> glib::ExitCode {
     let app = gtk::Application::builder()
         .application_id("com.jackson.spotlight")
@@ -17,13 +19,14 @@ fn main() -> glib::ExitCode {
         let window = gtk::ApplicationWindow::builder()
             .application(app)
             .title("Spotlight")
-            .css_classes(["overlay-root"])
+            .css_classes([css_classes::OVERLAY_ROOT])
             .build();
 
         let parse_config = Rc::new(RefCell::new(dir_search_rs::ParseConfig {
             search_dir: "/home/jotto/code/window-utils/spotlight/test-data".to_string(),
             search_str: "{search}".to_string(),
             search_contents: dir_search_rs::SearchContents::FileName,
+            parallel_preference: None,
         }));
 
         // window.init_layer_shell();
@@ -31,36 +34,34 @@ fn main() -> glib::ExitCode {
 
         let fill = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
-            .spacing(0)
             .halign(gtk::Align::Fill)
             .valign(gtk::Align::Fill)
             .hexpand(true)
             .vexpand(true)
-            .css_classes(["overlay-fill"])
+            .css_classes([css_classes::OVERLAY_FILL])
             .build();
 
         let input_entry = gtk::Entry::builder()
             .hexpand(true)
-            .css_classes(["search-input"])
+            .css_classes([css_classes::SEARCH_INPUT])
             .build();
 
-        let content = gtk::Box::builder()
+        let window_content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
-            .spacing(constants::CONTENT_GAP)
             .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .vexpand(true)
-            .css_classes(["content"])
+            .css_classes([css_classes::WINDOW_CONTENTS])
             .build();
-        content.append(&input_entry);
+        window_content.append(&input_entry);
 
         let result_wrapper = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .spacing(constants::CONTENT_GAP)
             .valign(gtk::Align::Center)
-            .css_classes(["result-wrapper"])
+            .css_classes([css_classes::RESULT_WRAPPER])
             .build();
-        content.append(&result_wrapper);
+        window_content.append(&result_wrapper);
 
         input_entry.connect_changed(glib::clone!(
             #[strong]
@@ -69,23 +70,24 @@ fn main() -> glib::ExitCode {
             result_wrapper,
             move |entry_widget| {
                 let search_text = entry_widget.text().to_string();
-                match dir_search_rs::search_with_config(&parse_config.borrow(), &search_text) {
+                let search_text = search_text.trim();
+                match dir_search_rs::search_with_config(&parse_config.borrow(), search_text) {
                     Ok(res) => {
                         render_results(&result_wrapper, &res);
                     }
-                    Err(err) => eprintln!("[ERROR]: {}", err),
+                    Err(err) => crate::error_log!(err),
                 }
             }
         ));
 
-        match dir_search_rs::search_with_config(&parse_config.borrow(), &"".to_string()) {
+        match dir_search_rs::search_with_config(&parse_config.borrow(), "") {
             Ok(res) => {
                 render_results(&result_wrapper, &res);
             }
-            Err(err) => eprintln!("[ERROR]: {}", err),
+            Err(err) => crate::error_log!(err),
         }
 
-        fill.append(&content);
+        fill.append(&window_content);
 
         window.set_child(Some(&fill));
 
@@ -102,9 +104,9 @@ fn main() -> glib::ExitCode {
             #[weak]
             window,
             #[weak]
-            content,
+            window_content,
             move |_, _, x, y| {
-                if let Some(bounds) = content.compute_bounds(&window)
+                if let Some(bounds) = window_content.compute_bounds(&window)
                     && !bounds.contains_point(&gtk::graphene::Point::new(x as f32, y as f32))
                 {
                     handle_close_window(&window);
@@ -149,7 +151,29 @@ fn render_results(result_container: &gtk::Box, results: &Vec<std::path::PathBuf>
     for result in results {
         let label = gtk::Label::builder()
             .label(result.to_str().unwrap())
+            .hexpand(true)
+            .halign(gtk::Align::Start)
+            .css_classes([css_classes::RESULT_ITEM])
             .build();
-        result_container.append(&label);
+
+        let label_revealer = gtk::Revealer::builder()
+            .child(&label)
+            .transition_type(gtk::RevealerTransitionType::SlideUp)
+            .transition_duration(constants::ANIMATION_DURATION_MS)
+            .hexpand(true)
+            .build();
+
+        label_revealer.connect_child_revealed_notify(glib::clone!(
+            #[weak]
+            result_container,
+            move |revealer| {
+                if !revealer.is_child_revealed() {
+                    result_container.remove(revealer);
+                }
+            },
+        ));
+
+        result_container.append(&label_revealer);
+        label_revealer.set_reveal_child(true);
     }
 }

@@ -2,6 +2,13 @@ use crate::constants::{APP_CONFIG_DIR, DEFAULT_STYLES, JOTTO_LIB_CONFIG_DIR, STY
 use gtk::{gdk, gio, glib};
 use gtk4 as gtk;
 
+#[macro_export]
+macro_rules! error_log {
+    ($arg:expr) => {
+        eprintln!("[ERROR]: {}", $arg)
+    };
+}
+
 pub fn load_css() {
     let mut config_path = glib::user_config_dir();
     config_path.push(JOTTO_LIB_CONFIG_DIR);
