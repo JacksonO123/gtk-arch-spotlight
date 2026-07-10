@@ -14,9 +14,12 @@ pub fn create_element(
         .css_classes([css_classes::RESULT_WRAPPER])
         .build();
 
+    let mut app_state_mut_borrow = the_app_state.borrow_mut();
+    app_state_mut_borrow.result_container = Some(result_wrapper.clone());
+
     match dir_search_rs::search_with_config(config, "") {
         Ok(res) => {
-            render::render_results(&mut the_app_state.borrow_mut(), &result_wrapper, res);
+            render::render_results(&mut app_state_mut_borrow, res);
         }
         Err(err) => error_log!(err),
     }

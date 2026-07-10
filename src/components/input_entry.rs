@@ -8,7 +8,6 @@ use crate::{error_log, render};
 pub fn create_element(
     the_app_state: &Rc<RefCell<app_state::AppState>>,
     config: &Rc<dir_search_rs::ParseConfig>,
-    result_wrapper: &gtk::Box,
 ) -> gtk::Entry {
     let input_entry = gtk::Entry::builder()
         .hexpand(true)
@@ -18,8 +17,6 @@ pub fn create_element(
     input_entry.connect_changed(glib::clone!(
         #[strong]
         config,
-        #[weak]
-        result_wrapper,
         #[strong]
         the_app_state,
         move |entry_widget| {
@@ -27,7 +24,7 @@ pub fn create_element(
             let search_text = search_text.trim();
             match dir_search_rs::search_with_config(config.borrow(), search_text) {
                 Ok(res) => {
-                    render::render_results(&mut the_app_state.borrow_mut(), &result_wrapper, res);
+                    render::render_results(&mut the_app_state.borrow_mut(), res);
                 }
                 Err(err) => error_log!(err),
             }

@@ -19,8 +19,7 @@ pub fn create_element(
         .build();
 
     let result_wrapper_element = result_wrapper::create_element(the_app_state, config);
-    let input_entry_element =
-        input_entry::create_element(the_app_state, config, &result_wrapper_element);
+    let input_entry_element = input_entry::create_element(the_app_state, config);
 
     window_content.append(&input_entry_element);
     window_content.append(&result_wrapper_element);

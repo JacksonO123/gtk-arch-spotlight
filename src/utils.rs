@@ -36,3 +36,13 @@ pub fn load_css() {
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 }
+
+pub enum RenderPreset {
+    DesktopFile,
+    Image,
+}
+
+pub struct AppConfig {
+    pub close: bool,
+    pub render_preset: Option<RenderPreset>,
+}

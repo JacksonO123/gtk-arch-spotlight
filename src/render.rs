@@ -1,17 +1,19 @@
-use gtk4::{self as gtk, glib, prelude::BoxExt};
+use gtk4::{
+    self as gtk,
+    glib::{self, object::Cast},
+    prelude::BoxExt,
+};
 use std::{collections::HashSet, path};
 
-use crate::{
-    app_state,
-    constants::{self, css_classes},
-    flags,
-};
+use crate::{app_state, components::result_item, constants, flags, utils};
 
-pub fn render_results(
-    the_app_state: &mut app_state::AppState,
-    result_container: &gtk::Box,
-    results: Vec<path::PathBuf>,
-) {
+pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<path::PathBuf>) {
+    let result_container = &the_app_state.result_container;
+    if result_container.is_none() {
+        return;
+    }
+    let result_container = result_container.as_ref().unwrap();
+
     let current_results_set: HashSet<_> = results.iter().collect();
 
     the_app_state.label_path_map.retain(|key, value| {
@@ -29,15 +31,15 @@ pub fn render_results(
             continue;
         }
 
-        let label = gtk::Label::builder()
-            .label(result.to_str().unwrap())
-            .hexpand(true)
-            .halign(gtk::Align::Start)
-            .css_classes([css_classes::RESULT_ITEM])
-            .build();
+        let widget: gtk::Widget = match the_app_state.render_preset {
+            utils::RenderPreset::DesktopFile => result_item::create_element(&result).upcast(),
+            utils::RenderPreset::Image => {
+                unreachable!()
+            }
+        };
 
         let label_revealer = gtk::Revealer::builder()
-            .child(&label)
+            .child(&widget)
             .transition_type(gtk::RevealerTransitionType::SlideUp)
             .transition_duration(if flags::ANIMATION_ENABLED {
                 constants::ANIMATION_DURATION_MS
