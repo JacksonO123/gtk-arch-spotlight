@@ -1,4 +1,3 @@
-pub const CONTENT_GAP: i32 = 12;
 pub const DEFAULT_STYLES: &str = include_str!("../assets/default-styles.css");
 pub const STYLE_FILE: &str = "style.css";
 pub const JOTTO_LIB_CONFIG_DIR: &str = "jotto-utils";
