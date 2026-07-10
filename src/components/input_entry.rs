@@ -27,7 +27,7 @@ pub fn create_element(
             let search_text = search_text.trim();
             match dir_search_rs::search_with_config(config.borrow(), search_text) {
                 Ok(res) => {
-                    render::render_results(&the_app_state, &result_wrapper, res);
+                    render::render_results(&mut the_app_state.borrow_mut(), &result_wrapper, res);
                 }
                 Err(err) => error_log!(err),
             }

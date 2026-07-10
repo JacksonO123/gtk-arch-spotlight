@@ -7,6 +7,7 @@ use std::{cell::RefCell, rc::Rc};
 mod app_state;
 mod components;
 mod constants;
+mod flags;
 mod render;
 mod utils;
 

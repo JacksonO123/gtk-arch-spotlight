@@ -16,7 +16,7 @@ pub fn create_element(
 
     match dir_search_rs::search_with_config(config, "") {
         Ok(res) => {
-            render::render_results(the_app_state, &result_wrapper, res);
+            render::render_results(&mut the_app_state.borrow_mut(), &result_wrapper, res);
         }
         Err(err) => error_log!(err),
     }

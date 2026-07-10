@@ -1,28 +1,34 @@
 use gtk4::{self as gtk, glib, prelude::BoxExt};
-use std::{cell::RefCell, collections::HashSet, path, rc::Rc};
+use std::{collections::HashSet, path};
 
 use crate::{
     app_state,
     constants::{self, css_classes},
+    flags,
 };
 
 pub fn render_results(
-    the_app_state: &Rc<RefCell<app_state::AppState>>,
+    the_app_state: &mut app_state::AppState,
     result_container: &gtk::Box,
     results: Vec<path::PathBuf>,
 ) {
-    let mut current_results_set: HashSet<path::PathBuf> =
-        results.iter().map(|item| item.to_owned()).collect();
+    let current_results_set: HashSet<_> = results.iter().collect();
 
-    for (key, value) in the_app_state.borrow().label_path_map.iter() {
-        if !current_results_set.contains(key) {
+    the_app_state.label_path_map.retain(|key, value| {
+        let res = current_results_set.contains(key);
+
+        if !res {
             value.set_reveal_child(false);
         }
 
-        current_results_set.remove(key);
-    }
+        res
+    });
 
-    for result in current_results_set {
+    for result in results {
+        if the_app_state.label_path_map.contains_key(&result) {
+            continue;
+        }
+
         let label = gtk::Label::builder()
             .label(result.to_str().unwrap())
             .hexpand(true)
@@ -33,7 +39,11 @@ pub fn render_results(
         let label_revealer = gtk::Revealer::builder()
             .child(&label)
             .transition_type(gtk::RevealerTransitionType::SlideUp)
-            .transition_duration(constants::ANIMATION_DURATION_MS)
+            .transition_duration(if flags::ANIMATION_ENABLED {
+                constants::ANIMATION_DURATION_MS
+            } else {
+                0
+            })
             .hexpand(true)
             .build();
 
@@ -42,12 +52,8 @@ pub fn render_results(
         label_revealer.connect_child_revealed_notify(glib::clone!(
             #[weak]
             result_container,
-            #[strong]
-            the_app_state,
             move |revealer| {
                 if !revealer.is_child_revealed() {
-                    let the_app_state: &mut app_state::AppState = &mut the_app_state.borrow_mut();
-                    the_app_state.label_path_map.remove(&result);
                     result_container.remove(revealer);
                 }
             },
@@ -56,8 +62,8 @@ pub fn render_results(
         result_container.append(&label_revealer);
         label_revealer.set_reveal_child(true);
 
-        let mut temp = the_app_state.borrow_mut();
-        temp.label_path_map
+        the_app_state
+            .label_path_map
             .insert(pre_move_result_clone, label_revealer);
     }
 }
