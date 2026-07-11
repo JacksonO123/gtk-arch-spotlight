@@ -3,18 +3,18 @@ use gtk4::{
     glib::{self, object::Cast},
     prelude::BoxExt,
 };
-use std::{collections::HashSet, path};
+use std::{collections::HashSet, fs};
 
 use crate::{app_state, components::result_item, constants, flags, utils};
 
-pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<path::PathBuf>) {
+pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<fs::DirEntry>) {
     let result_container = &the_app_state.result_container;
     if result_container.is_none() {
         return;
     }
     let result_container = result_container.as_ref().unwrap();
 
-    let current_results_set: HashSet<_> = results.iter().collect();
+    let current_results_set: HashSet<_> = results.iter().map(|item| item.path()).collect();
 
     the_app_state.label_path_map.retain(|key, value| {
         let res = current_results_set.contains(key);
@@ -26,14 +26,14 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<path
         res
     });
 
-    for result in results {
-        if the_app_state.label_path_map.contains_key(&result) {
+    for result in results[0..std::cmp::min(results.len(), 5)].iter() {
+        if the_app_state.label_path_map.contains_key(&result.path()) {
             continue;
         }
 
         let widget: gtk::Widget = match the_app_state.render_preset {
             utils::RenderPreset::DesktopFile => result_item::create_element(&result).upcast(),
-            utils::RenderPreset::Image => {
+            utils::RenderPreset::Images => {
                 unreachable!()
             }
         };
@@ -48,8 +48,6 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<path
             })
             .hexpand(true)
             .build();
-
-        let pre_move_result_clone = result.to_owned();
 
         label_revealer.connect_child_revealed_notify(glib::clone!(
             #[weak]
@@ -66,6 +64,6 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<path
 
         the_app_state
             .label_path_map
-            .insert(pre_move_result_clone, label_revealer);
+            .insert(result.path(), label_revealer);
     }
 }

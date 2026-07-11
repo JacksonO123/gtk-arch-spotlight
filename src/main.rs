@@ -17,7 +17,7 @@ use constants::css_classes;
 fn main() -> glib::ExitCode {
     let args = std::env::args();
     if args.len() < 2 {
-        panic!("Expected render preset");
+        error_log_exit!("Expected render preset");
     }
 
     let app = gtk::Application::builder()
@@ -44,24 +44,26 @@ fn main() -> glib::ExitCode {
                 }
                 "--render-desktop-files" => {
                     if config.render_preset.is_some() {
-                        panic!("Duplicate render preset options found")
+                        error_log_exit!("Duplicate render preset options found");
                     }
                     config.render_preset = Some(utils::RenderPreset::DesktopFile);
                 }
                 "--render-images" => {
                     if config.render_preset.is_some() {
-                        panic!("Duplicate render preset options found")
+                        error_log_exit!("Duplicate render preset options found");
                     }
-                    config.render_preset = Some(utils::RenderPreset::Image);
+                    config.render_preset = Some(utils::RenderPreset::Images);
                 }
-                _ => panic!("Unrecognized arg: {}", arg.to_str().unwrap()),
+                _ => {
+                    error_log!(format!("Unrecognized arg: \"{}\"", arg.to_str().unwrap()));
+                }
             }
         }
 
         let the_app_state = if let Some(render_preset) = config.render_preset {
             Rc::new(RefCell::new(app_state::AppState::new(render_preset)))
         } else {
-            panic!("Expected render preset")
+            error_log_exit!("Expected render preset");
         };
 
         let window = match app.windows().first() {
@@ -94,7 +96,7 @@ fn init_window(
         .build();
 
     let parse_config = Rc::new(dir_search_rs::ParseConfig {
-        search_dir: "/home/jotto/code/window-utils/spotlight/test-data".to_string(),
+        search_dirs: vec!["/usr/share/applications".to_string()],
         search_str: "{search}".to_string(),
         search_contents: dir_search_rs::SearchContents::FileName,
         parallel_preference: None,
@@ -103,8 +105,7 @@ fn init_window(
     window.init_layer_shell();
     window.set_layer(gtk4_layer_shell::Layer::Overlay);
 
-    let (fill_element, window_content_element) =
-        fill::create_element(&the_app_state, &parse_config);
+    let (fill_element, window_content_element) = fill::create_element(the_app_state, &parse_config);
 
     window.set_child(Some(&fill_element));
 

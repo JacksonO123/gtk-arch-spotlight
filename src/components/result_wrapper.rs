@@ -17,7 +17,7 @@ pub fn create_element(
     let mut app_state_mut_borrow = the_app_state.borrow_mut();
     app_state_mut_borrow.result_container = Some(result_wrapper.clone());
 
-    match dir_search_rs::search_with_config(config, "") {
+    match dir_search_rs::search_with_config(config, "", None) {
         Ok(res) => {
             render::render_results(&mut app_state_mut_borrow, res);
         }

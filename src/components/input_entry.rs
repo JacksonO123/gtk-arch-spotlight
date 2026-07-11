@@ -22,7 +22,7 @@ pub fn create_element(
         move |entry_widget| {
             let search_text = entry_widget.text().to_string();
             let search_text = search_text.trim();
-            match dir_search_rs::search_with_config(config.borrow(), search_text) {
+            match dir_search_rs::search_with_config(config.borrow(), search_text, None) {
                 Ok(res) => {
                     render::render_results(&mut the_app_state.borrow_mut(), res);
                 }

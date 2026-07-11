@@ -9,6 +9,14 @@ macro_rules! error_log {
     };
 }
 
+#[macro_export]
+macro_rules! error_log_exit {
+    ($arg:expr) => {
+        error_log!($arg);
+        std::process::exit(1);
+    };
+}
+
 pub fn load_css() {
     let mut config_path = glib::user_config_dir();
     config_path.push(JOTTO_LIB_CONFIG_DIR);
@@ -39,7 +47,7 @@ pub fn load_css() {
 
 pub enum RenderPreset {
     DesktopFile,
-    Image,
+    Images,
 }
 
 pub struct AppConfig {

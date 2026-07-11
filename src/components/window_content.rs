@@ -13,7 +13,7 @@ pub fn create_element(
     let window_content = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .halign(gtk::Align::Center)
-        .valign(gtk::Align::Center)
+        .valign(gtk::Align::Start)
         .vexpand(true)
         .css_classes([css_classes::WINDOW_CONTENTS])
         .build();
