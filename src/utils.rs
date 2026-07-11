@@ -1,11 +1,21 @@
-use crate::constants::{APP_CONFIG_DIR, DEFAULT_STYLES, JOTTO_LIB_CONFIG_DIR, STYLE_FILE};
 use gtk::{gdk, gio, glib};
 use gtk4 as gtk;
+use std::{env, path};
+
+use crate::constants::{APP_CONFIG_DIR, DEFAULT_STYLES, JOTTO_LIB_CONFIG_DIR, STYLE_FILE};
 
 #[macro_export]
 macro_rules! error_log {
     ($arg:expr) => {
         eprintln!("[ERROR]: {}", $arg)
+    };
+}
+
+#[macro_export]
+macro_rules! error_log_exit {
+    ($arg:expr) => {
+        error_log!($arg);
+        std::process::exit(1);
     };
 }
 
@@ -35,4 +45,34 @@ pub fn load_css() {
         &provider,
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
+}
+
+pub enum RenderPreset {
+    DesktopFile,
+    Images,
+}
+
+pub struct AppConfig {
+    pub close: bool,
+    pub render_preset: Option<RenderPreset>,
+}
+
+pub fn get_home_dir() -> Option<path::PathBuf> {
+    #[cfg(unix)]
+    {
+        env::var_os("HOME").map(path::PathBuf::from)
+    }
+
+    // NOTE: i dont like window and dont plan on officially supporting it
+    // or testing it but this tag is free so whatever
+    #[cfg(windows)]
+    {
+        env::var_os("USERPROFILE").map(path::PathBuf::from)
+    }
+}
+
+pub fn prefix_path_str(dir_path: path::PathBuf, path: &str) -> String {
+    let mut home_clone = dir_path.clone();
+    home_clone.push(path);
+    home_clone.to_str().unwrap().to_string()
 }

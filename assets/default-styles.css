@@ -27,8 +27,7 @@
     border-radius: var(--border-radius);
     font-size: 20px;
     min-width: var(--content-width);
-    max-width: var(--content-width);
-    width: var(--content-width);
+    margin-top: 600px;
 }
 
 .search-input {
@@ -38,6 +37,10 @@
     color: white;
     transition: 0.25s ease-in-out;
     margin-bottom: 0px;
+}
+
+.result-item {
+    padding: 6px;
 }
 
 button {
