@@ -131,7 +131,7 @@ fn init_window(
             utils::prefix_path_str(home_dir, ".local/share/applications"),
             "/usr/local/share/applications".to_string(),
         ],
-        search_strs: vec!["type=application".to_string(), "Name={search}".to_string()],
+        search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
         search_contents: dir_search_rs::SearchContents::FileContents(
             Some(".desktop".to_string()),
             true,

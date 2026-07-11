@@ -63,7 +63,7 @@ pub fn get_home_dir() -> Option<path::PathBuf> {
         panic!("Unsupported os. I hope you are not using windows.");
     }
 
-    { env::var_os("HOME").map(path::PathBuf::from) }
+    env::var_os("HOME").map(path::PathBuf::from)
 }
 
 pub fn prefix_path_str(dir_path: path::PathBuf, path: &str) -> String {
