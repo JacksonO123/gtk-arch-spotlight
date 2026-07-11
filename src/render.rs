@@ -7,7 +7,7 @@ use std::{collections::HashSet, fs};
 
 use crate::{app_state, components::result_item, constants, flags, utils};
 
-pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<fs::DirEntry>) {
+pub fn render_results(the_app_state: &mut app_state::AppState, results: &Vec<fs::DirEntry>) {
     let result_container = &the_app_state.result_container;
     if result_container.is_none() {
         return;
@@ -15,18 +15,21 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: Vec<fs::
     let result_container = result_container.as_ref().unwrap();
 
     let current_results_set: HashSet<_> = results.iter().map(|item| item.path()).collect();
+    let mut kept = 0;
 
     the_app_state.label_path_map.retain(|key, value| {
         let res = current_results_set.contains(key);
 
         if !res {
             value.set_reveal_child(false);
+        } else {
+            kept += 1;
         }
 
         res
     });
 
-    for result in results[0..std::cmp::min(results.len(), 5)].iter() {
+    for result in results[0..std::cmp::min(results.len(), constants::MAX_RESULTS - kept)].iter() {
         if the_app_state.label_path_map.contains_key(&result.path()) {
             continue;
         }

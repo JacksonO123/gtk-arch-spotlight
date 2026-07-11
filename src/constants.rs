@@ -5,6 +5,7 @@ pub const STYLE_FILE: &str = "style.css";
 pub const JOTTO_LIB_CONFIG_DIR: &str = "jotto-utils";
 pub const APP_CONFIG_DIR: &str = "spotlight";
 pub const ANIMATION_DURATION_MS: u32 = if flags::ANIMATION_ENABLED { 250 } else { 0 };
+pub const MAX_RESULTS: usize = 8;
 
 pub mod css_classes {
     pub const RESULT_ITEM: &str = "result-item";

@@ -19,7 +19,7 @@ pub fn create_element(
 
     match dir_search_rs::search_with_config(config, "", None) {
         Ok(res) => {
-            render::render_results(&mut app_state_mut_borrow, res);
+            render::render_results(&mut app_state_mut_borrow, &res);
         }
         Err(err) => error_log!(err),
     }

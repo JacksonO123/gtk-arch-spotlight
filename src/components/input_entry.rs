@@ -22,9 +22,22 @@ pub fn create_element(
         move |entry_widget| {
             let search_text = entry_widget.text().to_string();
             let search_text = search_text.trim();
-            match dir_search_rs::search_with_config(config.borrow(), search_text, None) {
+
+            let res = {
+                let last_search_info = the_app_state.borrow_mut().last_search_info.take();
+                dir_search_rs::search_with_config(config.borrow(), search_text, last_search_info)
+            };
+
+            match res {
                 Ok(res) => {
-                    render::render_results(&mut the_app_state.borrow_mut(), res);
+                    let app_state_mut_borrow = &mut the_app_state.borrow_mut();
+
+                    render::render_results(app_state_mut_borrow, &res);
+
+                    app_state_mut_borrow.last_search_info = Some(dir_search_rs::LastRunInfo {
+                        last_run_search_str_len: search_text.len(),
+                        last_run_results: res,
+                    });
                 }
                 Err(err) => error_log!(err),
             }
