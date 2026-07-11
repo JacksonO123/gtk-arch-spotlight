@@ -2,7 +2,7 @@ use gtk::prelude::*;
 use gtk::{gdk, gio, glib};
 use gtk4 as gtk;
 use gtk4_layer_shell::LayerShell;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 mod app_state;
 mod components;
@@ -68,7 +68,17 @@ fn main() -> glib::ExitCode {
 
         let window = match app.windows().first() {
             Some(win) => win.clone().downcast::<gtk::ApplicationWindow>().unwrap(),
-            None => init_window(app, &the_app_state),
+            None => {
+                let window = init_window(app, &the_app_state);
+
+                match window {
+                    Ok(win) => win,
+                    Err(err) => {
+                        error_log!(err);
+                        return glib::ExitCode::FAILURE;
+                    }
+                }
+            }
         };
 
         window.present();
@@ -83,10 +93,25 @@ fn main() -> glib::ExitCode {
     app.run()
 }
 
+#[derive(Debug)]
+enum WindowInitError {
+    CouldNotLocateHomeDir,
+}
+
+impl fmt::Display for WindowInitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let str_to_write = match self {
+            WindowInitError::CouldNotLocateHomeDir => "could not locate home dir",
+        };
+
+        write!(f, "{}", str_to_write)
+    }
+}
+
 fn init_window(
     app: &gtk::Application,
     the_app_state: &Rc<RefCell<app_state::AppState>>,
-) -> gtk::ApplicationWindow {
+) -> Result<gtk::ApplicationWindow, WindowInitError> {
     _ = app.hold();
 
     let window = gtk::ApplicationWindow::builder()
@@ -95,10 +120,22 @@ fn init_window(
         .css_classes([css_classes::OVERLAY_ROOT])
         .build();
 
+    let home_dir = match utils::get_home_dir() {
+        Some(value) => value,
+        None => return Err(WindowInitError::CouldNotLocateHomeDir),
+    };
+
     let parse_config = Rc::new(dir_search_rs::ParseConfig {
-        search_dirs: vec!["/usr/share/applications".to_string()],
-        search_str: "{search}".to_string(),
-        search_contents: dir_search_rs::SearchContents::FileName,
+        search_dirs: vec![
+            "/usr/share/applications".to_string(),
+            utils::prefix_path_str(home_dir, ".local/share/applications"),
+            "/usr/local/share/applications".to_string(),
+        ],
+        search_strs: vec!["type=application".to_string(), "Name={search}".to_string()],
+        search_contents: dir_search_rs::SearchContents::FileContents(
+            Some(".desktop".to_string()),
+            true,
+        ),
         parallel_preference: None,
     });
 
@@ -150,7 +187,7 @@ fn init_window(
     ));
     window.add_controller(key);
 
-    window
+    Ok(window)
 }
 
 #[cfg(debug_assertions)]

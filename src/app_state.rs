@@ -4,7 +4,7 @@ use std::{collections::HashMap, path};
 use crate::utils;
 
 pub struct AppState {
-    pub label_path_map: HashMap<path::PathBuf, gtk::Revealer>,
+    pub label_path_map: HashMap<path::PathBuf, gtk::Widget>,
     pub result_container: Option<gtk::Box>,
     pub render_preset: utils::RenderPreset,
     pub last_search_info: Option<dir_search_rs::LastRunInfo>,

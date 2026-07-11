@@ -7,7 +7,7 @@ use std::{collections::HashSet, fs};
 
 use crate::{app_state, components::result_item, constants, flags, utils};
 
-pub fn render_results(the_app_state: &mut app_state::AppState, results: &Vec<fs::DirEntry>) {
+pub fn render_results(the_app_state: &mut app_state::AppState, results: &[fs::DirEntry]) {
     let result_container = &the_app_state.result_container;
     if result_container.is_none() {
         return;
@@ -21,7 +21,16 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: &Vec<fs:
         let res = current_results_set.contains(key);
 
         if !res {
-            value.set_reveal_child(false);
+            if flags::ANIMATION_ENABLED {
+                unsafe {
+                    value
+                        .clone()
+                        .unsafe_cast::<gtk::Revealer>()
+                        .set_reveal_child(false);
+                }
+            } else {
+                result_container.remove(value);
+            }
         } else {
             kept += 1;
         }
@@ -34,39 +43,57 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: &Vec<fs:
             continue;
         }
 
-        let widget: gtk::Widget = match the_app_state.render_preset {
-            utils::RenderPreset::DesktopFile => result_item::create_element(&result).upcast(),
+        let widget: Option<gtk::Widget> = match the_app_state.render_preset {
+            utils::RenderPreset::DesktopFile => {
+                result_item::create_element(result).map(|widget| widget.upcast())
+            }
             utils::RenderPreset::Images => {
                 unreachable!()
             }
         };
 
-        let label_revealer = gtk::Revealer::builder()
-            .child(&widget)
-            .transition_type(gtk::RevealerTransitionType::SlideUp)
-            .transition_duration(if flags::ANIMATION_ENABLED {
-                constants::ANIMATION_DURATION_MS
-            } else {
-                0
-            })
-            .hexpand(true)
-            .build();
+        if widget.is_none() {
+            continue;
+        }
+        let widget = widget.unwrap();
 
-        label_revealer.connect_child_revealed_notify(glib::clone!(
-            #[weak]
-            result_container,
-            move |revealer| {
-                if !revealer.is_child_revealed() {
-                    result_container.remove(revealer);
-                }
-            },
-        ));
+        let item_widget = if flags::ANIMATION_ENABLED {
+            let widget = gtk::Revealer::builder()
+                .child(&widget)
+                .transition_type(gtk::RevealerTransitionType::SlideUp)
+                .transition_duration(constants::ANIMATION_DURATION_MS)
+                .hexpand(true)
+                .reveal_child(false)
+                .build();
 
-        result_container.append(&label_revealer);
-        label_revealer.set_reveal_child(true);
+            widget.connect_child_revealed_notify(glib::clone!(
+                #[weak]
+                result_container,
+                move |revealer| {
+                    if !revealer.is_child_revealed() {
+                        result_container.remove(revealer);
+                    }
+                },
+            ));
+
+            widget.upcast()
+        } else {
+            widget
+        };
+
+        result_container.append(&item_widget);
+
+        if flags::ANIMATION_ENABLED {
+            unsafe {
+                item_widget
+                    .clone()
+                    .unsafe_cast::<gtk::Revealer>()
+                    .set_reveal_child(true);
+            }
+        }
 
         the_app_state
             .label_path_map
-            .insert(result.path(), label_revealer);
+            .insert(result.path(), item_widget);
     }
 }
