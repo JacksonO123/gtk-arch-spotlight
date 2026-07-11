@@ -58,17 +58,12 @@ pub struct AppConfig {
 }
 
 pub fn get_home_dir() -> Option<path::PathBuf> {
-    #[cfg(unix)]
+    #[cfg(not(unix))]
     {
-        env::var_os("HOME").map(path::PathBuf::from)
+        panic!("Unsupported os. I hope you are not using windows.");
     }
 
-    // NOTE: i dont like window and dont plan on officially supporting it
-    // or testing it but this tag is free so whatever
-    #[cfg(windows)]
-    {
-        env::var_os("USERPROFILE").map(path::PathBuf::from)
-    }
+    { env::var_os("HOME").map(path::PathBuf::from) }
 }
 
 pub fn prefix_path_str(dir_path: path::PathBuf, path: &str) -> String {
