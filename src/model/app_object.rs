@@ -1,3 +1,5 @@
+use std::path;
+
 use gtk4 as gtk;
 
 use gtk::glib;
@@ -5,13 +7,18 @@ use gtk::subclass::prelude::*;
 
 use crate::model::desktop_entry::DesktopEntry;
 
+pub enum EntryData {
+    DesktopFile(DesktopEntry),
+    Image(path::PathBuf),
+}
+
 mod imp {
     use super::*;
     use std::cell::RefCell;
 
     #[derive(Default)]
     pub struct AppObject {
-        pub entry: RefCell<Option<DesktopEntry>>,
+        pub entry: RefCell<Option<EntryData>>,
     }
 
     #[glib::object_subclass]
@@ -28,33 +35,56 @@ glib::wrapper! {
 }
 
 impl AppObject {
-    pub fn new(entry: DesktopEntry) -> Self {
+    pub fn new(entry: EntryData) -> Self {
         let obj: Self = glib::Object::new();
         obj.imp().entry.replace(Some(entry));
         obj
     }
 
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> Option<String> {
         self.imp()
             .entry
             .borrow()
             .as_ref()
-            .map(|entry| entry.name.clone())
+            .map(|entry| {
+                if let EntryData::DesktopFile(entry) = entry {
+                    Some(entry.name.clone())
+                } else {
+                    None
+                }
+            })
             .unwrap_or_default()
     }
 
     pub fn icon(&self) -> Option<String> {
-        self.imp()
-            .entry
-            .borrow()
-            .as_ref()
-            .and_then(|entry| entry.icon.clone())
+        self.imp().entry.borrow().as_ref().and_then(|entry| {
+            if let EntryData::DesktopFile(entry) = entry {
+                entry.icon.clone()
+            } else {
+                None
+            }
+        })
     }
 
     pub fn launch(&self, term_exec: Option<&str>) -> std::io::Result<()> {
         match self.imp().entry.borrow().as_ref() {
-            Some(entry) => entry.launch(term_exec),
+            Some(entry) => {
+                if let EntryData::DesktopFile(entry) = entry {
+                    entry.launch(term_exec)
+                } else {
+                    Ok(())
+                }
+            }
             None => Ok(()),
+        }
+    }
+
+    pub fn get_img_path(&self) -> Option<path::PathBuf> {
+        let imp = self.imp();
+        let entry = imp.entry.borrow();
+        match &*entry {
+            Some(EntryData::Image(path)) => Some(path.clone()),
+            _ => None,
         }
     }
 }

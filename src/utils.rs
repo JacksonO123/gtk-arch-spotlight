@@ -47,7 +47,7 @@ pub fn load_css() {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RenderPreset {
     DesktopFile,
     Images,
@@ -84,7 +84,8 @@ pub fn prefix_path_str(dir_path: path::PathBuf, path: &str) -> String {
     home_clone.to_str().unwrap().to_string()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, glib::Boxed)]
+#[boxed_type(name = "AppConfig")]
 pub struct AppConfig {
     pub term: Option<String>,
     pub render_preset: Option<RenderPreset>,

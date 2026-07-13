@@ -165,23 +165,36 @@ fn build_window(
     app: &gtk::Application,
     app_config: utils::AppConfig,
 ) -> Result<SpotlightWindow, WindowInitError> {
+    let Some(render_preset) = app_config.render_preset else {
+        error_log_exit!("Expected render preset at build window");
+    };
+
     let _ = app.hold();
 
     let home_dir = utils::get_home_dir().ok_or(WindowInitError::CouldNotLocateHomeDir)?;
 
-    let parse_config = Rc::new(dir_search_rs::ParseConfig {
-        search_dirs: vec![
-            "/usr/share/applications".to_string(),
-            utils::prefix_path_str(home_dir, ".local/share/applications"),
-            "/usr/local/share/applications".to_string(),
-        ],
-        search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
-        search_contents: dir_search_rs::SearchContents::FileContents(
-            Some(".desktop".to_string()),
-            true,
-        ),
-        parallel_preference: None,
-    });
+    let parse_config = match render_preset {
+        utils::RenderPreset::DesktopFile => dir_search_rs::ParseConfig {
+            search_dirs: vec![
+                "/usr/share/applications".to_string(),
+                utils::prefix_path_str(home_dir, ".local/share/applications"),
+                "/usr/local/share/applications".to_string(),
+            ],
+            search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
+            search_contents: dir_search_rs::SearchContents::FileContents(
+                Some(".desktop".to_string()),
+                true,
+            ),
+            parallel_preference: None,
+        },
+        _ => dir_search_rs::ParseConfig {
+            search_dirs: vec![utils::prefix_path_str(home_dir, "wallpapers")],
+            search_strs: vec!["{search}".to_string()],
+            search_contents: dir_search_rs::SearchContents::FileName(false),
+            parallel_preference: None,
+        },
+    };
+    let parse_config = Rc::new(parse_config);
 
     Ok(SpotlightWindow::new(app, app_config, parse_config))
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 
 use crate::error_log;
-use crate::model::{AppObject, desktop_entry::DesktopEntry};
+use crate::model::{self, app_object::EntryData, desktop_entry::DesktopEntry};
 use crate::utils::RenderPreset;
 
 pub fn run_search(
@@ -10,7 +10,7 @@ pub fn run_search(
     config: &dir_search_rs::ParseConfig,
     last_search_info: &mut Option<dir_search_rs::LastRunInfo>,
     search_text: &str,
-) -> Vec<AppObject> {
+) -> Vec<model::AppObject> {
     let previous = last_search_info.take();
 
     let raw = match dir_search_rs::search_with_config(config, search_text, previous) {
@@ -23,7 +23,7 @@ pub fn run_search(
 
     let items = match preset {
         RenderPreset::DesktopFile => build_desktop_items(&raw),
-        RenderPreset::Images => Vec::new(),
+        RenderPreset::Images => build_image_items(&raw),
     };
 
     *last_search_info = Some(dir_search_rs::LastRunInfo {
@@ -34,7 +34,7 @@ pub fn run_search(
     items
 }
 
-fn build_desktop_items(raw: &[fs::DirEntry]) -> Vec<AppObject> {
+fn build_desktop_items(raw: &[fs::DirEntry]) -> Vec<model::AppObject> {
     let mut by_name: HashMap<String, DesktopEntry> = HashMap::new();
 
     for entry in raw {
@@ -52,5 +52,14 @@ fn build_desktop_items(raw: &[fs::DirEntry]) -> Vec<AppObject> {
             .cmp(&b.name.to_ascii_lowercase())
     });
 
-    entries.into_iter().map(AppObject::new).collect()
+    entries
+        .into_iter()
+        .map(|item| model::AppObject::new(EntryData::DesktopFile(item)))
+        .collect()
+}
+
+fn build_image_items(raw: &[fs::DirEntry]) -> Vec<model::AppObject> {
+    raw.into_iter()
+        .map(|item| model::AppObject::new(EntryData::Image(item.path())))
+        .collect()
 }

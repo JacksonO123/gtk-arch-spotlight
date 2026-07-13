@@ -27,10 +27,12 @@ impl SpotlightWindow {
         app_config: utils::AppConfig,
         config: Rc<dir_search_rs::ParseConfig>,
     ) -> Self {
-        let window: Self = glib::Object::builder().property("application", app).build();
+        let window: Self = glib::Object::builder()
+            .property("application", app)
+            .property("app_config", app_config)
+            .build();
 
         let imp = window.imp();
-        let _ = imp.app_config.set(app_config);
         let _ = imp.config.set(config);
 
         window.run_search("");
@@ -135,13 +137,13 @@ impl SpotlightWindow {
         }
     }
 
-    fn build_ui(&self) {
+    fn build_ui(&self, render_preset: utils::RenderPreset) {
         self.set_title(Some("Spotlight"));
         self.add_css_class(css_classes::OVERLAY_ROOT);
 
         self.setup_layer_shell();
 
-        let content = self.build_content();
+        let content = self.build_content(render_preset);
         let fill = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
             .halign(gtk::Align::Fill)
@@ -167,7 +169,7 @@ impl SpotlightWindow {
         self.set_keyboard_mode(KeyboardMode::Exclusive);
     }
 
-    fn build_content(&self) -> gtk::Box {
+    fn build_content(&self, render_preset: utils::RenderPreset) -> gtk::Box {
         let imp = self.imp();
 
         let store = gio::ListStore::new::<AppObject>();
@@ -175,7 +177,7 @@ impl SpotlightWindow {
 
         let list_view = gtk::ListView::builder()
             .model(&selection)
-            .factory(&build_factory())
+            .factory(&build_factory(render_preset))
             .single_click_activate(true)
             .css_classes([css_classes::RESULT_LIST])
             .single_click_activate(false)
@@ -280,10 +282,10 @@ impl SpotlightWindow {
     }
 }
 
-fn build_factory() -> gtk::SignalListItemFactory {
+fn build_factory(render_preset: utils::RenderPreset) -> gtk::SignalListItemFactory {
     let factory = gtk::SignalListItemFactory::new();
 
-    factory.connect_setup(|_, list_item| {
+    factory.connect_setup(move |_, list_item| {
         let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() else {
             return;
         };
@@ -295,7 +297,11 @@ fn build_factory() -> gtk::SignalListItemFactory {
             .build();
 
         let icon = gtk::Image::builder()
-            .pixel_size(28)
+            .pixel_size(if render_preset == utils::RenderPreset::DesktopFile {
+                28
+            } else {
+                100
+            })
             .css_classes([css_classes::RESULT_ICON])
             .build();
 
@@ -307,28 +313,16 @@ fn build_factory() -> gtk::SignalListItemFactory {
 
         row.append(&icon);
         row.append(&label);
+
         list_item.set_child(Some(&row));
     });
 
-    factory.connect_bind(|_, list_item| {
+    factory.connect_bind(move |_, list_item| {
         let Some(list_item) = list_item.downcast_ref::<gtk::ListItem>() else {
             return;
         };
-        let Some(obj) = list_item.item().and_downcast::<AppObject>() else {
-            return;
-        };
-        let Some(row) = list_item.child().and_downcast::<gtk::Box>() else {
-            return;
-        };
-        let Some(icon) = row.first_child().and_downcast::<gtk::Image>() else {
-            return;
-        };
-        let Some(label) = icon.next_sibling().and_downcast::<gtk::Label>() else {
-            return;
-        };
 
-        label.set_label(&obj.name());
-        set_icon(&icon, obj.icon().as_deref());
+        bind_list_item(list_item, render_preset);
     });
 
     factory
@@ -339,5 +333,33 @@ fn set_icon(image: &gtk::Image, icon: Option<&str>) {
         Some(name) if name.starts_with('/') => image.set_from_file(Some(name)),
         Some(name) => image.set_icon_name(Some(name)),
         None => image.set_icon_name(Some("application-x-executable")),
+    }
+}
+
+fn bind_list_item(list_item: &gtk::ListItem, render_preset: utils::RenderPreset) {
+    let Some(obj) = list_item.item().and_downcast::<AppObject>() else {
+        return;
+    };
+    let Some(row) = list_item.child().and_downcast::<gtk::Box>() else {
+        return;
+    };
+    let Some(icon) = row.first_child().and_downcast::<gtk::Image>() else {
+        return;
+    };
+    let Some(label) = icon.next_sibling().and_downcast::<gtk::Label>() else {
+        return;
+    };
+
+    match render_preset {
+        utils::RenderPreset::DesktopFile => {
+            label.set_label(&obj.name().unwrap());
+            set_icon(&icon, obj.icon().as_deref());
+        }
+        utils::RenderPreset::Images => {
+            let path = obj.get_img_path().unwrap();
+            let path = path.to_str();
+            label.set_label(path.unwrap());
+            set_icon(&icon, path);
+        }
     }
 }
