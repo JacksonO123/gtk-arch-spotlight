@@ -1,21 +1,29 @@
 use gtk4::{
     self as gtk,
     glib::{self, object::Cast},
-    prelude::BoxExt,
+    prelude::{BoxExt, WidgetExt},
 };
 use std::{collections::HashSet, fs};
 
-use crate::{app_state, components::result_item, constants, flags, utils};
+use crate::{
+    app_state,
+    components::result_item,
+    constants::{self, css_classes},
+    error_log, flags, utils,
+};
 
-pub fn render_results(the_app_state: &mut app_state::AppState, results: &[fs::DirEntry]) {
+pub fn render_results(
+    the_app_state: &mut app_state::AppState,
+    results: &[fs::DirEntry],
+) -> Option<gtk::Widget> {
     let result_container = &the_app_state.result_container;
     if result_container.is_none() {
-        return;
+        error_log!("Result container is none");
+        return None;
     }
     let result_container = result_container.as_ref().unwrap();
 
     let current_results_set: HashSet<_> = results.iter().map(|item| item.path()).collect();
-    let mut kept = 0;
 
     the_app_state.label_path_map.retain(|key, value| {
         let res = current_results_set.contains(key);
@@ -31,14 +39,17 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: &[fs::Di
             } else {
                 result_container.remove(value);
             }
-        } else {
-            kept += 1;
         }
 
         res
     });
+    let shown_len = the_app_state.label_path_map.len();
+    let needs = constants::MAX_RESULTS - std::cmp::min(shown_len, constants::MAX_RESULTS);
 
-    for result in results[0..std::cmp::min(results.len(), constants::MAX_RESULTS - kept)].iter() {
+    let rendered_items: Vec<_> = results[0..std::cmp::min(results.len(), needs)]
+        .iter()
+        .collect();
+    for result in rendered_items.iter() {
         if the_app_state.label_path_map.contains_key(&result.path()) {
             continue;
         }
@@ -96,4 +107,16 @@ pub fn render_results(the_app_state: &mut app_state::AppState, results: &[fs::Di
             .label_path_map
             .insert(result.path(), item_widget);
     }
+
+    if results.is_empty() {
+        result_container.add_css_class(css_classes::EMPTY);
+    } else {
+        result_container.remove_css_class(css_classes::EMPTY);
+    }
+
+    result_container.first_child().map(move |element| {
+        element.add_css_class(css_classes::ACTIVE_RESULT);
+        the_app_state.active_data.element = Some(element.clone());
+        element
+    })
 }

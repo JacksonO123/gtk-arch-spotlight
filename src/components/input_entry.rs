@@ -3,7 +3,7 @@ use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use crate::app_state;
 use crate::constants::css_classes;
-use crate::{error_log, render};
+use crate::modules::search;
 
 pub fn create_element(
     the_app_state: &Rc<RefCell<app_state::AppState>>,
@@ -23,24 +23,10 @@ pub fn create_element(
             let search_text = entry_widget.text().to_string();
             let search_text = search_text.trim();
 
-            let res = {
-                let last_search_info = the_app_state.borrow_mut().last_search_info.take();
-                dir_search_rs::search_with_config(config.borrow(), search_text, last_search_info)
-            };
+            let app_state_mut_borrow = &mut the_app_state.borrow_mut();
+            app_state_mut_borrow.active_data.index = 0;
 
-            match res {
-                Ok(res) => {
-                    let app_state_mut_borrow = &mut the_app_state.borrow_mut();
-
-                    render::render_results(app_state_mut_borrow, &res);
-
-                    app_state_mut_borrow.last_search_info = Some(dir_search_rs::LastRunInfo {
-                        last_run_search_str_len: search_text.len(),
-                        last_run_results: res,
-                    });
-                }
-                Err(err) => error_log!(err),
-            }
+            search::handle_search_and_render(app_state_mut_borrow, config.borrow(), search_text);
         }
     ));
 

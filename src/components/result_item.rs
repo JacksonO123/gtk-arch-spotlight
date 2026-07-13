@@ -11,7 +11,7 @@ pub fn create_element(result: &fs::DirEntry) -> Option<gtk::Label> {
             file_data.find(search_for).map(|index| {
                 let index = index + search_for.len();
                 let end = file_data[index..]
-                    .find("\n")
+                    .find('\n')
                     .map(|found_index| found_index + index)
                     .unwrap_or(file_data.len());
                 file_data[index..end].to_string()
@@ -22,7 +22,7 @@ pub fn create_element(result: &fs::DirEntry) -> Option<gtk::Label> {
                 gtk::Label::builder()
                     .label(inner)
                     .hexpand(true)
-                    .halign(gtk::Align::Start)
+                    .xalign(0.0)
                     .css_classes([css_classes::RESULT_ITEM])
                     .build()
             })

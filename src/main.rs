@@ -8,7 +8,7 @@ mod app_state;
 mod components;
 mod constants;
 mod flags;
-mod render;
+mod modules;
 mod utils;
 
 use components::fill;
@@ -174,6 +174,8 @@ fn init_window(
     key.connect_key_pressed(glib::clone!(
         #[weak]
         window,
+        #[strong]
+        the_app_state,
         #[upgrade_or]
         glib::Propagation::Proceed,
         move |_, key, _, _| {
@@ -181,6 +183,48 @@ fn init_window(
                 handle_close_window(&window);
                 glib::Propagation::Stop
             } else {
+                let app_state_mut_borrow = &mut the_app_state.borrow_mut();
+
+                match key {
+                    gdk::Key::Up => {
+                        app_state_mut_borrow.active_data.index =
+                            if app_state_mut_borrow.active_data.index > 0 {
+                                app_state_mut_borrow.active_data.index - 1
+                            } else {
+                                0
+                            };
+
+                        if let Some(element) = &app_state_mut_borrow.active_data.element {
+                            if let Some(prev_element) = element.prev_sibling() {
+                                prev_element.add_css_class(css_classes::ACTIVE_RESULT);
+                                element.remove_css_class(css_classes::ACTIVE_RESULT);
+                                app_state_mut_borrow.active_data.element = Some(prev_element);
+                            }
+                        }
+                    }
+                    gdk::Key::Down => {
+                        if let Some(search_info) = &app_state_mut_borrow.last_search_info {
+                            app_state_mut_borrow.active_data.index =
+                                if app_state_mut_borrow.active_data.index + 1
+                                    < search_info.last_run_results.len()
+                                {
+                                    app_state_mut_borrow.active_data.index + 1
+                                } else {
+                                    app_state_mut_borrow.active_data.index
+                                };
+                        }
+
+                        if let Some(element) = &app_state_mut_borrow.active_data.element {
+                            if let Some(prev_element) = element.next_sibling() {
+                                prev_element.add_css_class(css_classes::ACTIVE_RESULT);
+                                element.remove_css_class(css_classes::ACTIVE_RESULT);
+                                app_state_mut_borrow.active_data.element = Some(prev_element);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+
                 glib::Propagation::Proceed
             }
         }
