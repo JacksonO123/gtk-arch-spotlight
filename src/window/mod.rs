@@ -62,7 +62,11 @@ impl SpotlightWindow {
 
         store.splice(0, store.n_items(), &items);
 
-        if store.n_items() > 0 {
+        let has_results = store.n_items() > 0;
+        if let Some(scroller) = imp.scroller.get() {
+            scroller.set_visible(has_results);
+        }
+        if has_results {
             list_view.scroll_to(0, gtk::ListScrollFlags::empty(), None);
         }
     }
@@ -219,6 +223,7 @@ impl SpotlightWindow {
         let _ = imp.store.set(store);
         let _ = imp.selection.set(selection);
         let _ = imp.list_view.set(list_view);
+        let _ = imp.scroller.set(scroller);
         let _ = imp.content.set(content.clone());
 
         content

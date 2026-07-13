@@ -14,6 +14,7 @@ pub struct SpotlightWindow {
     pub store: OnceCell<gio::ListStore>,
     pub selection: OnceCell<gtk::SingleSelection>,
     pub list_view: OnceCell<gtk::ListView>,
+    pub scroller: OnceCell<gtk::ScrolledWindow>,
     pub content: OnceCell<gtk::Box>,
 
     pub render_preset: OnceCell<RenderPreset>,
