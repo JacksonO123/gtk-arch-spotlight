@@ -8,12 +8,6 @@ use std::rc::Rc;
 
 use crate::utils::RenderPreset;
 
-/// Private state for [`super::SpotlightWindow`].
-///
-/// Everything the window needs lives here — the widget handles built during
-/// construction and the search state. This replaces the old
-/// `Rc<RefCell<AppState>>`: mutable state is held in the subclass instance
-/// itself, which is the idiomatic gtk4-rs approach.
 #[derive(Default)]
 pub struct SpotlightWindow {
     pub entry: OnceCell<gtk::Entry>,
@@ -37,9 +31,6 @@ impl ObjectSubclass for SpotlightWindow {
 impl ObjectImpl for SpotlightWindow {
     fn constructed(&self) {
         self.parent_constructed();
-        // Build the widget tree, actions and layer-shell config. Search-time
-        // state (preset/config) is populated by `SpotlightWindow::new` after
-        // construction, so nothing here may depend on it.
         self.obj().build_ui();
     }
 }

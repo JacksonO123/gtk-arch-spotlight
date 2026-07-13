@@ -5,12 +5,6 @@ use crate::error_log;
 use crate::model::{AppObject, desktop_entry::DesktopEntry};
 use crate::utils::RenderPreset;
 
-/// Run a search and produce the model items to display.
-///
-/// Owns the interaction with `dir_search_rs` (including the incremental
-/// "reuse last run" optimisation, threaded through `last_search_info`) and
-/// turns the raw `DirEntry` hits into deduplicated, sorted [`AppObject`]s ready
-/// to be spliced into the list store.
 pub fn run_search(
     preset: RenderPreset,
     config: &dir_search_rs::ParseConfig,
@@ -29,8 +23,6 @@ pub fn run_search(
 
     let items = match preset {
         RenderPreset::DesktopFile => build_desktop_items(&raw),
-        // Image rendering is not implemented yet; produce nothing rather than
-        // panicking so the rest of the UI stays functional.
         RenderPreset::Images => Vec::new(),
     };
 
@@ -42,8 +34,6 @@ pub fn run_search(
     items
 }
 
-/// Parse each result once, collapse duplicates by (case-insensitive) name, and
-/// sort alphabetically for a stable ordering.
 fn build_desktop_items(raw: &[fs::DirEntry]) -> Vec<AppObject> {
     let mut by_name: HashMap<String, DesktopEntry> = HashMap::new();
 

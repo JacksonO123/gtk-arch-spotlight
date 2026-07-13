@@ -21,9 +21,6 @@ fn main() -> glib::ExitCode {
     app.connect_startup(|app| {
         utils::load_css();
 
-        // Keyboard handling is expressed as window actions; the accelerators
-        // route the relevant keys to them. They fire in the capture phase, so
-        // they work even while the search entry holds focus.
         app.set_accels_for_action("win.close", &["Escape"]);
         app.set_accels_for_action("win.select-prev", &["Up"]);
         app.set_accels_for_action("win.select-next", &["Down"]);
@@ -106,7 +103,6 @@ fn build_window(
     app: &gtk::Application,
     render_preset: RenderPreset,
 ) -> Result<SpotlightWindow, WindowInitError> {
-    // Keep the application alive for as long as the window exists.
     let _ = app.hold();
 
     let home_dir = utils::get_home_dir().ok_or(WindowInitError::CouldNotLocateHomeDir)?;

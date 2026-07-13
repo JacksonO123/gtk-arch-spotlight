@@ -2,12 +2,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::process::Stdio;
 
-/// A parsed `.desktop` application entry.
-///
-/// This is the plain-data representation of a launcher result. Each file is
-/// read and parsed exactly once into this struct; everything the UI needs
-/// (display name, icon, launch command) is derived from here.
 #[derive(Debug, Clone)]
 pub struct DesktopEntry {
     pub name: String,
@@ -18,10 +14,6 @@ pub struct DesktopEntry {
 }
 
 impl DesktopEntry {
-    /// Parse a `.desktop` file, reading only the `[Desktop Entry]` group.
-    ///
-    /// Returns `None` when the file can't be read, has no `Name`, or is marked
-    /// `NoDisplay`/`Hidden` (entries that should never appear in a launcher).
     pub fn from_path(path: &Path) -> Option<Self> {
         let contents = fs::read_to_string(path).ok()?;
 
@@ -53,8 +45,6 @@ impl DesktopEntry {
             };
             let value = value.trim();
 
-            // Only the plain keys — localized variants like `Name[de]` are
-            // intentionally ignored, and the first occurrence wins.
             match key.trim() {
                 "Name" if name.is_none() => name = Some(value.to_string()),
                 "Exec" if exec.is_none() => exec = Some(value.to_string()),
@@ -77,10 +67,6 @@ impl DesktopEntry {
         })
     }
 
-    /// Launch the application described by this entry's `Exec` line.
-    ///
-    /// Field codes (`%f`, `%U`, `%i`, …) are stripped per the Desktop Entry
-    /// spec; the child is spawned detached and not waited on.
     pub fn launch(&self) -> io::Result<()> {
         let exec = self
             .exec
@@ -91,7 +77,6 @@ impl DesktopEntry {
             if token == "%%" {
                 Some("%".to_string())
             } else if token.starts_with('%') {
-                // Standalone field code (e.g. `%U`, `%f`) — drop it.
                 None
             } else {
                 Some(token.to_string())
@@ -102,6 +87,12 @@ impl DesktopEntry {
             .next()
             .ok_or_else(|| io::Error::other("desktop entry Exec is empty"))?;
 
-        Command::new(program).args(tokens).spawn().map(|_| ())
+        Command::new(program)
+            .args(tokens)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .stdin(Stdio::null())
+            .spawn()
+            .map(|_| ())
     }
 }

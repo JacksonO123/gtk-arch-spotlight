@@ -33,28 +33,25 @@ impl SpotlightWindow {
         let _ = imp.render_preset.set(render_preset);
         let _ = imp.config.set(config);
 
-        // Seed the list with the empty-query results now that the search
-        // parameters are known.
         window.run_search("");
 
         window
     }
 
-    /// Move keyboard focus to the search entry. Call after `present`, once the
-    /// window is realized.
     pub fn focus_entry(&self) {
         if let Some(entry) = self.imp().entry.get() {
             entry.grab_focus();
         }
     }
 
-    /// Re-run the search for `text` and replace the list contents.
     pub fn run_search(&self, text: &str) {
         let imp = self.imp();
-        let (Some(preset), Some(config)) = (imp.render_preset.get(), imp.config.get()) else {
-            return;
-        };
-        let (Some(store), Some(list_view)) = (imp.store.get(), imp.list_view.get()) else {
+        let (Some(preset), Some(config), Some(store), Some(list_view)) = (
+            imp.render_preset.get(),
+            imp.config.get(),
+            imp.store.get(),
+            imp.list_view.get(),
+        ) else {
             return;
         };
 
@@ -62,7 +59,6 @@ impl SpotlightWindow {
             let mut last = imp.last_search_info.borrow_mut();
             search::run_search(*preset, config, &mut last, text)
         };
-        // `last` (the RefMut) is dropped here, before the UI mutations below.
 
         store.splice(0, store.n_items(), &items);
 
@@ -71,8 +67,6 @@ impl SpotlightWindow {
         }
     }
 
-    /// Move the selection by `delta` rows, keeping it in bounds and scrolling
-    /// the newly-selected row into view.
     pub fn move_selection(&self, delta: i32) {
         let imp = self.imp();
         let (Some(selection), Some(list_view)) = (imp.selection.get(), imp.list_view.get()) else {
@@ -85,7 +79,6 @@ impl SpotlightWindow {
         }
 
         let current = selection.selected();
-        // `selected()` is GTK_INVALID_LIST_POSITION (u32::MAX) when unset.
         let current = if current >= count { 0 } else { current };
 
         let next = if delta < 0 {
@@ -98,7 +91,6 @@ impl SpotlightWindow {
         list_view.scroll_to(next, gtk::ListScrollFlags::empty(), None);
     }
 
-    /// Launch the currently selected application. Returns `true` on success.
     pub fn launch_selected(&self) -> bool {
         let Some(selection) = self.imp().selection.get() else {
             return false;
@@ -116,8 +108,6 @@ impl SpotlightWindow {
         }
     }
 
-    /// Dismiss the window. In debug builds this closes it (so the process
-    /// exits); in release it hides so the app can be re-shown instantly.
     pub fn dismiss(&self) {
         if cfg!(debug_assertions) {
             self.close();
@@ -125,8 +115,6 @@ impl SpotlightWindow {
             self.set_visible(false);
         }
     }
-
-    // --- construction helpers (private) --------------------------------------
 
     fn build_ui(&self) {
         self.set_title(Some("Spotlight"));
@@ -160,13 +148,10 @@ impl SpotlightWindow {
         self.set_keyboard_mode(KeyboardMode::Exclusive);
     }
 
-    /// Build the centered search box: entry on top, scrollable results below.
     fn build_content(&self) -> gtk::Box {
         let imp = self.imp();
 
         let store = gio::ListStore::new::<AppObject>();
-        // `SingleSelection` defaults to autoselect + can't-unselect, so the
-        // first result is always highlighted after a search.
         let selection = gtk::SingleSelection::new(Some(store.clone()));
 
         let list_view = gtk::ListView::builder()
@@ -189,7 +174,6 @@ impl SpotlightWindow {
         let scroller = gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vscrollbar_policy(gtk::PolicyType::Automatic)
-            // Grow to fit the results, capped, then scroll beyond that.
             .propagate_natural_height(true)
             .max_content_height(420)
             .css_classes([css_classes::RESULT_SCROLLER])
@@ -229,7 +213,6 @@ impl SpotlightWindow {
         content
     }
 
-    /// Semantic actions, driven by the accelerators installed in `main`.
     fn setup_actions(&self) {
         let actions = [
             gio::ActionEntry::builder("close")
@@ -252,7 +235,6 @@ impl SpotlightWindow {
         self.add_action_entries(actions);
     }
 
-    /// Clicking outside the search box dismisses the window.
     fn setup_dismiss_on_outside_click(&self) {
         let Some(content) = self.imp().content.get() else {
             return;

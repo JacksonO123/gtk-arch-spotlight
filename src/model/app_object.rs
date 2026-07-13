@@ -24,8 +24,6 @@ mod imp {
 }
 
 glib::wrapper! {
-    /// GObject wrapper around a [`DesktopEntry`] so it can live in a
-    /// `gio::ListStore` and be bound by a `SignalListItemFactory`.
     pub struct AppObject(ObjectSubclass<imp::AppObject>);
 }
 
