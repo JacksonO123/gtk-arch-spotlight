@@ -32,7 +32,7 @@ pub fn render_results(
             .render_data
             .rendered_items
             .take()
-            .unwrap_or_else(|| vec![]);
+            .unwrap_or_default();
         let filtered_items_set: Vec<_> = current_rendered_items
             .into_iter()
             .filter(|item| {
@@ -40,8 +40,7 @@ pub fn render_results(
 
                 let next_child = current_child
                     .clone()
-                    .map(|child| skip_closed_revealer(child.next_sibling()))
-                    .flatten();
+                    .and_then(|child| skip_closed_revealer(child.next_sibling()));
 
                 if !contains && let Some(child) = &current_child {
                     if flags::ANIMATION_ENABLED {
@@ -72,11 +71,8 @@ pub fn render_results(
     let needs = constants::MAX_RESULTS
         - std::cmp::min(filtered_current_rendered.len(), constants::MAX_RESULTS);
 
-    let mut items_to_add: Vec<_> = new_result_paths
-        [0..std::cmp::min(new_result_paths.len(), needs)]
-        .iter()
-        .map(|path| path.clone())
-        .collect();
+    let mut items_to_add: Vec<_> =
+        new_result_paths[0..std::cmp::min(new_result_paths.len(), needs)].to_vec();
 
     for result in items_to_add.iter() {
         let widget: Option<gtk::Widget> = match the_app_state.render_preset {
@@ -145,22 +141,9 @@ pub fn render_results(
         result_container.remove_css_class(css_classes::EMPTY);
     }
 
-    skip_closed_revealer(result_container.first_child()).map(move |element| {
-        let target_element = if flags::ANIMATION_ENABLED {
-            element
-                .first_child()
-                .map(|wrapper| wrapper.first_child())
-                .flatten()
-        } else {
-            Some(element.clone())
-        };
-
-        if let Some(target) = target_element {
-            target.add_css_class(css_classes::ACTIVE_RESULT);
-        }
-
+    skip_closed_revealer(result_container.first_child()).inspect(move |element| {
+        toggle_active_element(element.clone(), true);
         the_app_state.render_data.active_element = Some(element.clone());
-        element
     })
 }
 
@@ -180,4 +163,22 @@ fn skip_closed_revealer(mut widget: Option<gtk::Widget>) -> Option<gtk::Widget> 
     }
 
     None
+}
+
+pub fn toggle_active_element(widget: gtk::Widget, value: bool) {
+    let target_element = if flags::ANIMATION_ENABLED {
+        widget
+            .first_child()
+            .and_then(|wrapper| wrapper.first_child())
+    } else {
+        Some(widget)
+    };
+
+    if let Some(target) = target_element {
+        if value {
+            target.add_css_class(css_classes::ACTIVE_RESULT);
+        } else {
+            target.remove_css_class(css_classes::ACTIVE_RESULT);
+        }
+    }
 }

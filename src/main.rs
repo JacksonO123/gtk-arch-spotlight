@@ -13,6 +13,7 @@ mod utils;
 
 use components::fill;
 use constants::css_classes;
+use modules::render;
 
 fn main() -> glib::ExitCode {
     let args = std::env::args();
@@ -194,13 +195,12 @@ fn init_window(
                                 0
                             };
 
-                        if let Some(element) = &app_state_mut_borrow.render_data.active_element {
-                            if let Some(prev_element) = element.prev_sibling() {
-                                prev_element.add_css_class(css_classes::ACTIVE_RESULT);
-                                element.remove_css_class(css_classes::ACTIVE_RESULT);
-                                app_state_mut_borrow.render_data.active_element =
-                                    Some(prev_element);
-                            }
+                        if let Some(element) = &app_state_mut_borrow.render_data.active_element
+                            && let Some(prev_element) = element.prev_sibling()
+                        {
+                            render::toggle_active_element(prev_element.clone(), true);
+                            render::toggle_active_element(element.clone(), false);
+                            app_state_mut_borrow.render_data.active_element = Some(prev_element);
                         }
                     }
                     gdk::Key::Down => {
@@ -215,13 +215,12 @@ fn init_window(
                                 };
                         }
 
-                        if let Some(element) = &app_state_mut_borrow.render_data.active_element {
-                            if let Some(prev_element) = element.next_sibling() {
-                                prev_element.add_css_class(css_classes::ACTIVE_RESULT);
-                                element.remove_css_class(css_classes::ACTIVE_RESULT);
-                                app_state_mut_borrow.render_data.active_element =
-                                    Some(prev_element);
-                            }
+                        if let Some(element) = &app_state_mut_borrow.render_data.active_element
+                            && let Some(prev_element) = element.next_sibling()
+                        {
+                            render::toggle_active_element(prev_element.clone(), true);
+                            render::toggle_active_element(element.clone(), false);
+                            app_state_mut_borrow.render_data.active_element = Some(prev_element);
                         }
                     }
                     _ => {}

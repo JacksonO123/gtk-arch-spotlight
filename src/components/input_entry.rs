@@ -3,7 +3,7 @@ use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use crate::app_state;
 use crate::constants::css_classes;
-use crate::modules::search;
+use crate::modules::{render, search};
 
 pub fn create_element(
     the_app_state: &Rc<RefCell<app_state::AppState>>,
@@ -24,7 +24,9 @@ pub fn create_element(
             let search_text = search_text.trim();
 
             let app_state_mut_borrow = &mut the_app_state.borrow_mut();
-            app_state_mut_borrow.render_data.active_index = 0;
+            if let Some(element) = &app_state_mut_borrow.render_data.active_element {
+                render::toggle_active_element(element.clone(), false);
+            }
 
             search::handle_search_and_render(app_state_mut_borrow, config.borrow(), search_text);
         }

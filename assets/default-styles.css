@@ -69,6 +69,8 @@ button:hover {
     padding: 6px;
     border-radius: var(--border-radius);
     border: 1px solid transparent;
+    transition: var(--transition-all);
+    opacity: 1;
 }
 
 .active-result {
@@ -97,4 +99,8 @@ button:hover {
 .result-wrapper:not(.empty) {
     padding-bottom: 12px;
     padding-top: 0px;
+}
+
+.removed {
+    opacity: 0;
 }
