@@ -7,13 +7,12 @@ use std::{cell::RefCell, fmt, rc::Rc};
 mod app_state;
 mod components;
 mod constants;
-mod flags;
+mod model;
 mod modules;
 mod utils;
 
-use components::fill;
+use components::{fill, result_list};
 use constants::css_classes;
-use modules::render;
 
 fn main() -> glib::ExitCode {
     let args = std::env::args();
@@ -143,7 +142,8 @@ fn init_window(
     window.init_layer_shell();
     window.set_layer(gtk4_layer_shell::Layer::Overlay);
 
-    let (fill_element, window_content_element) = fill::create_element(the_app_state, &parse_config);
+    let (fill_element, window_content_element, handles) =
+        fill::create_element(the_app_state, &parse_config);
 
     window.set_child(Some(&fill_element));
 
@@ -171,63 +171,49 @@ fn init_window(
     ));
     window.add_controller(click);
 
+    // Single-click / activation on a row launches and dismisses.
+    handles.list_view.connect_activate(glib::clone!(
+        #[weak]
+        window,
+        #[strong]
+        handles,
+        move |_, _| {
+            if result_list::launch_selected(&handles) {
+                handle_close_window(&window);
+            }
+        }
+    ));
+
+    // The search entry keeps keyboard focus, so navigation and activation are
+    // driven from the window here and applied to the list's selection model.
     let key = gtk::EventControllerKey::new();
     key.connect_key_pressed(glib::clone!(
         #[weak]
         window,
         #[strong]
-        the_app_state,
+        handles,
         #[upgrade_or]
         glib::Propagation::Proceed,
-        move |_, key, _, _| {
-            if key == gdk::Key::Escape {
+        move |_, key, _, _| match key {
+            gdk::Key::Escape => {
                 handle_close_window(&window);
                 glib::Propagation::Stop
-            } else {
-                let app_state_mut_borrow = &mut the_app_state.borrow_mut();
-
-                match key {
-                    gdk::Key::Up => {
-                        app_state_mut_borrow.render_data.active_index =
-                            if app_state_mut_borrow.render_data.active_index > 0 {
-                                app_state_mut_borrow.render_data.active_index - 1
-                            } else {
-                                0
-                            };
-
-                        if let Some(element) = &app_state_mut_borrow.render_data.active_element
-                            && let Some(prev_element) = element.prev_sibling()
-                        {
-                            render::toggle_active_element(prev_element.clone(), true);
-                            render::toggle_active_element(element.clone(), false);
-                            app_state_mut_borrow.render_data.active_element = Some(prev_element);
-                        }
-                    }
-                    gdk::Key::Down => {
-                        if let Some(search_info) = &app_state_mut_borrow.last_search_info {
-                            app_state_mut_borrow.render_data.active_index =
-                                if app_state_mut_borrow.render_data.active_index + 1
-                                    < search_info.last_run_results.len()
-                                {
-                                    app_state_mut_borrow.render_data.active_index + 1
-                                } else {
-                                    app_state_mut_borrow.render_data.active_index
-                                };
-                        }
-
-                        if let Some(element) = &app_state_mut_borrow.render_data.active_element
-                            && let Some(prev_element) = element.next_sibling()
-                        {
-                            render::toggle_active_element(prev_element.clone(), true);
-                            render::toggle_active_element(element.clone(), false);
-                            app_state_mut_borrow.render_data.active_element = Some(prev_element);
-                        }
-                    }
-                    _ => {}
-                }
-
-                glib::Propagation::Proceed
             }
+            gdk::Key::Up => {
+                result_list::move_selection(&handles, -1);
+                glib::Propagation::Stop
+            }
+            gdk::Key::Down => {
+                result_list::move_selection(&handles, 1);
+                glib::Propagation::Stop
+            }
+            gdk::Key::Return | gdk::Key::KP_Enter => {
+                if result_list::launch_selected(&handles) {
+                    handle_close_window(&window);
+                }
+                glib::Propagation::Stop
+            }
+            _ => glib::Propagation::Proceed,
         }
     ));
     window.add_controller(key);
