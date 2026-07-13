@@ -169,6 +169,7 @@ impl SpotlightWindow {
             .factory(&build_factory())
             .single_click_activate(true)
             .css_classes([css_classes::RESULT_LIST])
+            .single_click_activate(false)
             .build();
 
         list_view.connect_activate(glib::clone!(

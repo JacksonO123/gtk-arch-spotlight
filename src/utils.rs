@@ -53,9 +53,20 @@ pub enum RenderPreset {
     Images,
 }
 
-pub struct AppConfig {
-    pub close: bool,
-    pub render_preset: Option<RenderPreset>,
+impl RenderPreset {
+    pub fn from_str(str: &str) -> Option<Self> {
+        match str {
+            "desktop-file" => Some(Self::DesktopFile),
+            "image" => Some(Self::Images),
+            _ => {
+                error_log!(format!(
+                    "Unexpected render preset value \"{}\" expected one of (\"desktop-file\", \"image\")",
+                    str
+                ));
+                None
+            }
+        }
+    }
 }
 
 pub fn get_home_dir() -> Option<path::PathBuf> {
@@ -71,4 +82,50 @@ pub fn prefix_path_str(dir_path: path::PathBuf, path: &str) -> String {
     let mut home_clone = dir_path.clone();
     home_clone.push(path);
     home_clone.to_str().unwrap().to_string()
+}
+
+#[derive(Debug)]
+pub struct AppConfig {
+    pub term: Option<String>,
+    pub render_preset: Option<RenderPreset>,
+}
+
+impl AppConfig {
+    pub fn new(term: Option<String>, render_preset: Option<RenderPreset>) -> Self {
+        Self {
+            term,
+            render_preset,
+        }
+    }
+}
+
+pub fn parse_config(config_file: String) -> AppConfig {
+    let lines = config_file.split('\n');
+    let mut term: Option<String> = None;
+    let mut render_preset: Option<RenderPreset> = None;
+
+    for line in lines {
+        let parts: Vec<_> = line.splitn(2, '=').collect();
+        if parts.len() < 2 {
+            if parts[0].len() > 0 {
+                error_log!(format!("Expected \"=\" after {}", parts[0]));
+            }
+            continue;
+        }
+        if parts[1].len() == 0 {
+            error_log!(format!("Expected value after {}=", parts[0]));
+        }
+
+        match parts[0] {
+            "term" => term = Some(parts[1].to_string()),
+            "render_preset" => {
+                RenderPreset::from_str(parts[1]).inspect(|val| render_preset = Some(val.clone()));
+            }
+            _ => {
+                error_log!(format!("Unexpected config key {}", parts[0]))
+            }
+        }
+    }
+
+    AppConfig::new(term, render_preset)
 }

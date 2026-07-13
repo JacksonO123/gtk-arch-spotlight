@@ -2,6 +2,7 @@ pub const DEFAULT_STYLES: &str = include_str!("../assets/default-styles.css");
 pub const STYLE_FILE: &str = "style.css";
 pub const JOTTO_LIB_CONFIG_DIR: &str = "jotto-utils";
 pub const APP_CONFIG_DIR: &str = "spotlight";
+pub const CONF_FILE_NAME: &str = "app.conf";
 
 pub mod css_classes {
     pub const OVERLAY_ROOT: &str = "overlay-root";
