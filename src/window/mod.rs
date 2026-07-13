@@ -115,6 +115,10 @@ impl SpotlightWindow {
     }
 
     pub fn dismiss(&self) {
+        if let Some(entry) = self.imp().entry.get() {
+            entry.delete_text(0, -1);
+        }
+
         if cfg!(debug_assertions) {
             self.close();
         } else {
