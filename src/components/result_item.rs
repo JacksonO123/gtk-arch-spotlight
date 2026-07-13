@@ -1,12 +1,10 @@
 use gtk4 as gtk;
-use std::fs;
+use std::{fs, path};
 
-use crate::constants::css_classes;
-
-pub fn create_element(result: &fs::DirEntry) -> Option<gtk::Label> {
+pub fn create_element(result: &path::PathBuf) -> Option<gtk::Label> {
     let search_for = "Name=";
 
-    fs::read_to_string(result.path())
+    fs::read_to_string(result)
         .map(|file_data| {
             file_data.find(search_for).map(|index| {
                 let index = index + search_for.len();
@@ -23,7 +21,6 @@ pub fn create_element(result: &fs::DirEntry) -> Option<gtk::Label> {
                     .label(inner)
                     .hexpand(true)
                     .xalign(0.0)
-                    .css_classes([css_classes::RESULT_ITEM])
                     .build()
             })
         })

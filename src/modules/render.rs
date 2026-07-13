@@ -3,7 +3,7 @@ use gtk4::{
     glib::{self, object::Cast},
     prelude::{BoxExt, WidgetExt},
 };
-use std::{collections::HashSet, fs};
+use std::{collections::HashSet, fs, path};
 
 use crate::{
     app_state,
@@ -23,37 +23,62 @@ pub fn render_results(
     }
     let result_container = result_container.as_ref().unwrap();
 
-    let current_results_set: HashSet<_> = results.iter().map(|item| item.path()).collect();
+    let mut current_results_set: HashSet<path::PathBuf> =
+        results.iter().map(|item| item.path()).collect();
 
-    the_app_state.label_path_map.retain(|key, value| {
-        let res = current_results_set.contains(key);
+    let (mut filtered_current_rendered, new_result_paths): (Vec<_>, Vec<_>) = {
+        let mut current_child = skip_closed_revealer(result_container.first_child());
+        let current_rendered_items = the_app_state
+            .render_data
+            .rendered_items
+            .take()
+            .unwrap_or_else(|| vec![]);
+        let filtered_items_set: Vec<_> = current_rendered_items
+            .into_iter()
+            .filter(|item| {
+                let contains = current_results_set.contains(item);
 
-        if !res {
-            if flags::ANIMATION_ENABLED {
-                unsafe {
-                    value
-                        .clone()
-                        .unsafe_cast::<gtk::Revealer>()
-                        .set_reveal_child(false);
+                let next_child = current_child
+                    .clone()
+                    .map(|child| skip_closed_revealer(child.next_sibling()))
+                    .flatten();
+
+                if !contains && let Some(child) = &current_child {
+                    if flags::ANIMATION_ENABLED {
+                        unsafe {
+                            child
+                                .clone()
+                                .unsafe_cast::<gtk::Revealer>()
+                                .set_reveal_child(false);
+                        }
+                    } else {
+                        result_container.remove(child);
+                    }
                 }
-            } else {
-                result_container.remove(value);
-            }
-        }
 
-        res
-    });
-    let shown_len = the_app_state.label_path_map.len();
-    let needs = constants::MAX_RESULTS - std::cmp::min(shown_len, constants::MAX_RESULTS);
+                current_child = next_child;
 
-    let rendered_items: Vec<_> = results[0..std::cmp::min(results.len(), needs)]
+                contains
+            })
+            .collect();
+
+        current_results_set.retain(|item| !filtered_items_set.contains(item));
+        let filtered_items_vec: Vec<_> = filtered_items_set.into_iter().collect();
+        let new_paths: Vec<_> = current_results_set.into_iter().collect();
+
+        (filtered_items_vec, new_paths)
+    };
+
+    let needs = constants::MAX_RESULTS
+        - std::cmp::min(filtered_current_rendered.len(), constants::MAX_RESULTS);
+
+    let mut items_to_add: Vec<_> = new_result_paths
+        [0..std::cmp::min(new_result_paths.len(), needs)]
         .iter()
+        .map(|path| path.clone())
         .collect();
-    for result in rendered_items.iter() {
-        if the_app_state.label_path_map.contains_key(&result.path()) {
-            continue;
-        }
 
+    for result in items_to_add.iter() {
         let widget: Option<gtk::Widget> = match the_app_state.render_preset {
             utils::RenderPreset::DesktopFile => {
                 result_item::create_element(result).map(|widget| widget.upcast())
@@ -68,9 +93,16 @@ pub fn render_results(
         }
         let widget = widget.unwrap();
 
+        widget.add_css_class(css_classes::RESULT_ITEM);
+
         let item_widget = if flags::ANIMATION_ENABLED {
+            let wrapper_box = gtk::Box::builder()
+                .orientation(gtk::Orientation::Vertical)
+                .build();
+            wrapper_box.append(&widget);
+
             let widget = gtk::Revealer::builder()
-                .child(&widget)
+                .child(&wrapper_box)
                 .transition_type(gtk::RevealerTransitionType::SlideUp)
                 .transition_duration(constants::ANIMATION_DURATION_MS)
                 .hexpand(true)
@@ -102,11 +134,10 @@ pub fn render_results(
                     .set_reveal_child(true);
             }
         }
-
-        the_app_state
-            .label_path_map
-            .insert(result.path(), item_widget);
     }
+
+    filtered_current_rendered.append(&mut items_to_add);
+    the_app_state.render_data.rendered_items = Some(filtered_current_rendered);
 
     if results.is_empty() {
         result_container.add_css_class(css_classes::EMPTY);
@@ -114,9 +145,39 @@ pub fn render_results(
         result_container.remove_css_class(css_classes::EMPTY);
     }
 
-    result_container.first_child().map(move |element| {
-        element.add_css_class(css_classes::ACTIVE_RESULT);
-        the_app_state.active_data.element = Some(element.clone());
+    skip_closed_revealer(result_container.first_child()).map(move |element| {
+        let target_element = if flags::ANIMATION_ENABLED {
+            element
+                .first_child()
+                .map(|wrapper| wrapper.first_child())
+                .flatten()
+        } else {
+            Some(element.clone())
+        };
+
+        if let Some(target) = target_element {
+            target.add_css_class(css_classes::ACTIVE_RESULT);
+        }
+
+        the_app_state.render_data.active_element = Some(element.clone());
         element
     })
+}
+
+fn skip_closed_revealer(mut widget: Option<gtk::Widget>) -> Option<gtk::Widget> {
+    if !flags::ANIMATION_ENABLED {
+        return widget;
+    }
+
+    while let Some(element) = &widget {
+        unsafe {
+            if element.unsafe_cast_ref::<gtk::Revealer>().reveals_child() {
+                return Some(element.clone());
+            }
+
+            widget = element.next_sibling();
+        }
+    }
+
+    None
 }

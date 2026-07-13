@@ -187,38 +187,40 @@ fn init_window(
 
                 match key {
                     gdk::Key::Up => {
-                        app_state_mut_borrow.active_data.index =
-                            if app_state_mut_borrow.active_data.index > 0 {
-                                app_state_mut_borrow.active_data.index - 1
+                        app_state_mut_borrow.render_data.active_index =
+                            if app_state_mut_borrow.render_data.active_index > 0 {
+                                app_state_mut_borrow.render_data.active_index - 1
                             } else {
                                 0
                             };
 
-                        if let Some(element) = &app_state_mut_borrow.active_data.element {
+                        if let Some(element) = &app_state_mut_borrow.render_data.active_element {
                             if let Some(prev_element) = element.prev_sibling() {
                                 prev_element.add_css_class(css_classes::ACTIVE_RESULT);
                                 element.remove_css_class(css_classes::ACTIVE_RESULT);
-                                app_state_mut_borrow.active_data.element = Some(prev_element);
+                                app_state_mut_borrow.render_data.active_element =
+                                    Some(prev_element);
                             }
                         }
                     }
                     gdk::Key::Down => {
                         if let Some(search_info) = &app_state_mut_borrow.last_search_info {
-                            app_state_mut_borrow.active_data.index =
-                                if app_state_mut_borrow.active_data.index + 1
+                            app_state_mut_borrow.render_data.active_index =
+                                if app_state_mut_borrow.render_data.active_index + 1
                                     < search_info.last_run_results.len()
                                 {
-                                    app_state_mut_borrow.active_data.index + 1
+                                    app_state_mut_borrow.render_data.active_index + 1
                                 } else {
-                                    app_state_mut_borrow.active_data.index
+                                    app_state_mut_borrow.render_data.active_index
                                 };
                         }
 
-                        if let Some(element) = &app_state_mut_borrow.active_data.element {
+                        if let Some(element) = &app_state_mut_borrow.render_data.active_element {
                             if let Some(prev_element) = element.next_sibling() {
                                 prev_element.add_css_class(css_classes::ACTIVE_RESULT);
                                 element.remove_css_class(css_classes::ACTIVE_RESULT);
-                                app_state_mut_borrow.active_data.element = Some(prev_element);
+                                app_state_mut_borrow.render_data.active_element =
+                                    Some(prev_element);
                             }
                         }
                     }

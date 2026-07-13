@@ -2,9 +2,9 @@ use gtk4 as gtk;
 use std::borrow::Borrow;
 use std::{cell::RefCell, rc::Rc};
 
-use crate::app_state;
 use crate::constants::css_classes;
 use crate::modules::search;
+use crate::{app_state, flags};
 
 pub fn create_element(
     the_app_state: &Rc<RefCell<app_state::AppState>>,
@@ -13,7 +13,14 @@ pub fn create_element(
     let result_wrapper = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .valign(gtk::Align::Center)
-        .css_classes([css_classes::RESULT_WRAPPER])
+        .css_classes([
+            css_classes::RESULT_WRAPPER,
+            if flags::ANIMATION_ENABLED {
+                css_classes::TRANSITION_ALL
+            } else {
+                ""
+            },
+        ])
         .build();
 
     let app_state_mut_borrow = &mut the_app_state.borrow_mut();

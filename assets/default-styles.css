@@ -12,6 +12,8 @@
     --yellow-border-components: 153, 146, 63;
 
     --content-width: 800px;
+    --transition-curve: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --all-transition: all 0.2s var(--transition-curve);
 }
 
 button {
@@ -26,7 +28,7 @@ button {
             rgba(27, 27, 27, .55) 50%);
     background-color: var(--button-bg-inactive);
     color: white;
-    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.15s ease;
+    transition: var(--all-transition), color 0.15s ease;
     min-width: 0px;
     padding-left: 0px;
     padding-right: 0px;
@@ -56,7 +58,6 @@ button:hover {
     border: none;
     outline: none;
     color: white;
-    transition: 0.25s ease-in-out;
     --x-padding: 6px;
     margin-left: var(--x-padding);
     margin-right: var(--x-padding);
@@ -82,7 +83,18 @@ button:hover {
     box-shadow: inset 0 0 0 1px var(--border-main);
 }
 
+.result-wrapper {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+
+.transition-all {
+    transition: var(--all-transition);
+}
+
 .result-wrapper:not(.empty) {
-    padding: 12px;
+    padding-bottom: 12px;
     padding-top: 0px;
 }

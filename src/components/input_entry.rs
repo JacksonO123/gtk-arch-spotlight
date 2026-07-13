@@ -24,7 +24,7 @@ pub fn create_element(
             let search_text = search_text.trim();
 
             let app_state_mut_borrow = &mut the_app_state.borrow_mut();
-            app_state_mut_borrow.active_data.index = 0;
+            app_state_mut_borrow.render_data.active_index = 0;
 
             search::handle_search_and_render(app_state_mut_borrow, config.borrow(), search_text);
         }

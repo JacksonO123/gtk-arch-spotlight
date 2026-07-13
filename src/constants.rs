@@ -14,4 +14,5 @@ pub mod css_classes {
     pub const RESULT_WRAPPER: &str = "result-wrapper";
     pub const ACTIVE_RESULT: &str = "active-result";
     pub const EMPTY: &str = "empty";
+    pub const TRANSITION_ALL: &str = "transition-all";
 }
