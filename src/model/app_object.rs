@@ -51,9 +51,9 @@ impl AppObject {
             .and_then(|entry| entry.icon.clone())
     }
 
-    pub fn launch(&self) -> std::io::Result<()> {
+    pub fn launch(&self, term_exec: Option<&str>) -> std::io::Result<()> {
         match self.imp().entry.borrow().as_ref() {
-            Some(entry) => entry.launch(),
+            Some(entry) => entry.launch(term_exec),
             None => Ok(()),
         }
     }

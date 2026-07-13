@@ -12,7 +12,7 @@ use crate::constants::css_classes;
 use crate::error_log;
 use crate::model::AppObject;
 use crate::modules::search;
-use crate::utils::RenderPreset;
+use crate::utils;
 
 glib::wrapper! {
     pub struct SpotlightWindow(ObjectSubclass<imp::SpotlightWindow>)
@@ -24,13 +24,13 @@ glib::wrapper! {
 impl SpotlightWindow {
     pub fn new(
         app: &gtk::Application,
-        render_preset: RenderPreset,
+        app_config: utils::AppConfig,
         config: Rc<dir_search_rs::ParseConfig>,
     ) -> Self {
         let window: Self = glib::Object::builder().property("application", app).build();
 
         let imp = window.imp();
-        let _ = imp.render_preset.set(render_preset);
+        let _ = imp.app_config.set(app_config);
         let _ = imp.config.set(config);
 
         window.run_search("");
@@ -46,18 +46,21 @@ impl SpotlightWindow {
 
     pub fn run_search(&self, text: &str) {
         let imp = self.imp();
-        let (Some(preset), Some(config), Some(store), Some(list_view)) = (
-            imp.render_preset.get(),
+        let (Some(app_config), Some(config), Some(store), Some(list_view)) = (
+            imp.app_config.get(),
             imp.config.get(),
             imp.store.get(),
             imp.list_view.get(),
         ) else {
             return;
         };
+        let Some(preset) = app_config.render_preset else {
+            return;
+        };
 
         let items = {
             let mut last = imp.last_search_info.borrow_mut();
-            search::run_search(*preset, config, &mut last, text)
+            search::run_search(preset, config, &mut last, text)
         };
 
         store.splice(0, store.n_items(), &items);
@@ -96,14 +99,16 @@ impl SpotlightWindow {
     }
 
     pub fn launch_selected(&self) -> bool {
-        let Some(selection) = self.imp().selection.get() else {
+        let imp = self.imp();
+        let (Some(selection), Some(app_config)) = (imp.selection.get(), imp.app_config.get())
+        else {
             return false;
         };
         let Some(obj) = selection.selected_item().and_downcast::<AppObject>() else {
             return false;
         };
 
-        match obj.launch() {
+        match obj.launch(app_config.term.as_deref()) {
             Ok(()) => {
                 if let Some(entry) = self.imp().entry.get() {
                     entry.delete_text(0, -1);

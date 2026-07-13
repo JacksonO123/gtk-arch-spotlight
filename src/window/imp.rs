@@ -6,7 +6,7 @@ use gtk::subclass::prelude::*;
 use std::cell::{OnceCell, RefCell};
 use std::rc::Rc;
 
-use crate::utils::RenderPreset;
+use crate::utils;
 
 #[derive(Default)]
 pub struct SpotlightWindow {
@@ -17,7 +17,7 @@ pub struct SpotlightWindow {
     pub scroller: OnceCell<gtk::ScrolledWindow>,
     pub content: OnceCell<gtk::Box>,
 
-    pub render_preset: OnceCell<RenderPreset>,
+    pub app_config: OnceCell<utils::AppConfig>,
     pub config: OnceCell<Rc<dir_search_rs::ParseConfig>>,
     pub last_search_info: RefCell<Option<dir_search_rs::LastRunInfo>>,
 }

@@ -11,6 +11,7 @@ pub struct DesktopEntry {
     pub icon: Option<String>,
     #[allow(dead_code)]
     pub path: PathBuf,
+    pub terminal: bool,
 }
 
 impl DesktopEntry {
@@ -23,6 +24,7 @@ impl DesktopEntry {
         let mut icon: Option<String> = None;
         let mut no_display = false;
         let mut hidden = false;
+        let mut terminal = false;
 
         for line in contents.lines() {
             let line = line.trim();
@@ -51,6 +53,15 @@ impl DesktopEntry {
                 "Icon" if icon.is_none() => icon = Some(value.to_string()),
                 "NoDisplay" => no_display = value.eq_ignore_ascii_case("true"),
                 "Hidden" => hidden = value.eq_ignore_ascii_case("true"),
+                "Terminal" => {
+                    terminal = match value {
+                        "true" => true,
+                        "false" => false,
+                        _ => {
+                            continue;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -64,14 +75,23 @@ impl DesktopEntry {
             exec,
             icon,
             path: path.to_path_buf(),
+            terminal,
         })
     }
 
-    pub fn launch(&self) -> io::Result<()> {
+    pub fn launch(&self, term_exec: Option<&str>) -> io::Result<()> {
         let exec = self
             .exec
             .as_deref()
             .ok_or_else(|| io::Error::other("desktop entry has no Exec key"))?;
+
+        let exec = if self.terminal
+            && let Some(term_exec) = term_exec
+        {
+            format!("{} {}", term_exec, exec)
+        } else {
+            exec.to_string()
+        };
 
         let mut tokens = exec.split_whitespace().filter_map(|token| {
             if token == "%%" {

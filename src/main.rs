@@ -60,23 +60,11 @@ fn main() -> glib::ExitCode {
 
                     i += 1;
 
-                    match next.as_str() {
-                        "desktop-file" => {
-                            if render_preset.is_some() {
-                                error_log_exit!("Duplicate render preset options found");
-                            }
-                            render_preset = Some(utils::RenderPreset::DesktopFile);
-                        }
-                        "image" => {
-                            if render_preset.is_some() {
-                                error_log_exit!("Duplicate render preset options found");
-                            }
-                            render_preset = Some(utils::RenderPreset::Images);
-                        }
-                        _ => {
-                            error_log!("Unexpected render type")
-                        }
+                    if render_preset.is_some() {
+                        error_log_exit!("Duplicate render preset options found");
                     }
+
+                    render_preset = utils::RenderPreset::from_str(&next);
                 }
                 "--config" => {
                     let next = if i + 1 < args.len() {
@@ -131,11 +119,11 @@ fn main() -> glib::ExitCode {
         let window = match app.windows().first() {
             Some(win) => win.clone().downcast::<SpotlightWindow>().unwrap(),
             None => {
-                let Some(render_preset) = app_config.render_preset else {
+                if app_config.render_preset.is_none() {
                     error_log_exit!("Expected render preset");
                 };
 
-                match build_window(app, render_preset) {
+                match build_window(app, app_config) {
                     Ok(win) => win,
                     Err(err) => {
                         error_log!(err);
@@ -175,7 +163,7 @@ impl fmt::Display for WindowInitError {
 
 fn build_window(
     app: &gtk::Application,
-    render_preset: utils::RenderPreset,
+    app_config: utils::AppConfig,
 ) -> Result<SpotlightWindow, WindowInitError> {
     let _ = app.hold();
 
@@ -195,5 +183,5 @@ fn build_window(
         parallel_preference: None,
     });
 
-    Ok(SpotlightWindow::new(app, render_preset, parse_config))
+    Ok(SpotlightWindow::new(app, app_config, parse_config))
 }
