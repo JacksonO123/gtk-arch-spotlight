@@ -100,7 +100,13 @@ impl SpotlightWindow {
         };
 
         match obj.launch() {
-            Ok(()) => true,
+            Ok(()) => {
+                if let Some(entry) = self.imp().entry.get() {
+                    entry.delete_text(0, -1);
+                }
+
+                true
+            }
             Err(err) => {
                 error_log!(err);
                 false
