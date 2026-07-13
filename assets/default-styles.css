@@ -45,12 +45,12 @@ button:hover {
 .window-content {
     background-color: var(--bg-main);
     margin: 12px;
+    margin-top: 600px;
     border: 1px solid var(--outer-border);
     box-shadow: inset 0 0 0 1px var(--inner-border-lighter);
     border-radius: var(--border-radius);
     font-size: 20px;
     min-width: var(--content-width);
-    margin-top: 600px;
 }
 
 .search-input {
@@ -65,15 +65,29 @@ button:hover {
     margin-bottom: 12px;
 }
 
-.result-item {
-    padding: 6px;
-    border-radius: var(--border-radius);
-    border: 1px solid transparent;
-    transition: var(--transition-all);
-    opacity: 1;
+/* Scrollable results area */
+.result-scroller {
+    padding: 0 8px 8px 8px;
 }
 
-.active-result {
+.result-list {
+    background: transparent;
+    color: white;
+}
+
+/* Each row emitted by the ListView factory */
+.result-list row {
+    padding: 6px 8px;
+    border-radius: var(--border-radius);
+    border: 1px solid transparent;
+    transition: var(--all-transition);
+}
+
+.result-list row:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.result-list row:selected {
     background:
         linear-gradient(to bottom,
             #fff 0,
@@ -83,24 +97,13 @@ button:hover {
     background-color: var(--button-bg-inactive);
     border: 1px solid var(--outer-border);
     box-shadow: inset 0 0 0 1px var(--border-main);
+    color: white;
 }
 
-.result-wrapper {
-    padding-left: 12px;
-    padding-right: 12px;
-    padding-bottom: 0px;
-    padding-top: 0px;
+.result-item {
+    /* icon + label row; spacing is set on the box in code */
 }
 
-.transition-all {
-    transition: var(--all-transition);
-}
-
-.result-wrapper:not(.empty) {
-    padding-bottom: 12px;
-    padding-top: 0px;
-}
-
-.removed {
-    opacity: 0;
+.result-icon {
+    -gtk-icon-size: 28px;
 }

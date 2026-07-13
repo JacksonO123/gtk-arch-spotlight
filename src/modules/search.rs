@@ -1,69 +1,56 @@
-use gtk4 as gtk;
-
 use std::collections::HashMap;
 use std::fs;
 
-use crate::app_state;
 use crate::error_log;
-use crate::modules::render;
+use crate::model::{AppObject, desktop_entry::DesktopEntry};
+use crate::utils::RenderPreset;
 
-pub fn handle_search_and_render(
-    the_app_state: &mut app_state::AppState,
+pub fn run_search(
+    preset: RenderPreset,
     config: &dir_search_rs::ParseConfig,
+    last_search_info: &mut Option<dir_search_rs::LastRunInfo>,
     search_text: &str,
-) -> Option<gtk::Widget> {
-    let res = {
-        let last_search_info = the_app_state.last_search_info.take();
-        dir_search_rs::search_with_config(config, search_text, last_search_info)
-    };
+) -> Vec<AppObject> {
+    let previous = last_search_info.take();
 
-    match res {
-        Ok(res) => {
-            let res = to_merged_results(res);
-
-            let first_element = render::render_results(the_app_state, &res);
-
-            the_app_state.last_search_info = Some(dir_search_rs::LastRunInfo {
-                last_run_search_str_len: search_text.len(),
-                last_run_results: res,
-            });
-
-            first_element
-        }
+    let raw = match dir_search_rs::search_with_config(config, search_text, previous) {
+        Ok(raw) => raw,
         Err(err) => {
             error_log!(err);
-            None
+            return Vec::new();
+        }
+    };
+
+    let items = match preset {
+        RenderPreset::DesktopFile => build_desktop_items(&raw),
+        RenderPreset::Images => Vec::new(),
+    };
+
+    *last_search_info = Some(dir_search_rs::LastRunInfo {
+        last_run_search_str_len: search_text.len(),
+        last_run_results: raw,
+    });
+
+    items
+}
+
+fn build_desktop_items(raw: &[fs::DirEntry]) -> Vec<AppObject> {
+    let mut by_name: HashMap<String, DesktopEntry> = HashMap::new();
+
+    for entry in raw {
+        if let Some(desktop) = DesktopEntry::from_path(&entry.path()) {
+            by_name
+                .entry(desktop.name.to_ascii_lowercase())
+                .or_insert(desktop);
         }
     }
-}
 
-fn to_merged_results(results: Vec<fs::DirEntry>) -> Vec<fs::DirEntry> {
-    results
-        .into_iter()
-        .filter_map(move |item| {
-            get_desktop_property("name", &item)
-                .map(|name_value| (name_value.to_ascii_lowercase(), item))
-        })
-        .collect::<HashMap<String, fs::DirEntry>>()
-        .into_values()
-        .collect::<Vec<fs::DirEntry>>()
-}
+    let mut entries: Vec<DesktopEntry> = by_name.into_values().collect();
+    entries.sort_by(|a, b| {
+        a.name
+            .to_ascii_lowercase()
+            .cmp(&b.name.to_ascii_lowercase())
+    });
 
-fn get_desktop_property(property: &str, entry: &fs::DirEntry) -> Option<String> {
-    fs::read_to_string(entry.path())
-        .map(|file_data| {
-            file_data
-                .to_ascii_lowercase()
-                .find(property)
-                .map(|mut location| {
-                    // account for =
-                    location += property.len() + 1;
-                    let end = file_data[location..]
-                        .find('\n')
-                        .map(|end_location| end_location + location)
-                        .unwrap_or(file_data.len());
-                    file_data[location..end].to_string()
-                })
-        })
-        .unwrap_or(None)
+    entries.into_iter().map(AppObject::new).collect()
 }
