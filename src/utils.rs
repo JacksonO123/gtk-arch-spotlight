@@ -20,33 +20,37 @@ macro_rules! error_log_exit {
 }
 
 pub fn load_css() {
+    let default_display = &gdk::Display::default().expect("Could not connect to a display");
+
+    // Bundled defaults sit at APPLICATION priority as the base layer.
+    let defaults = gtk::CssProvider::new();
+    defaults.load_from_data(DEFAULT_STYLES);
+    gtk::style_context_add_provider_for_display(
+        default_display,
+        &defaults,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
+
+    // The user's stylesheet loads at USER priority so it overrides the
+    // defaults rather than being overridden by them.
     let mut config_path = glib::user_config_dir();
     config_path.push(JOTTO_LIB_CONFIG_DIR);
     config_path.push(APP_CONFIG_DIR);
     config_path.push(STYLE_FILE);
 
-    let default_display = &gdk::Display::default().expect("Could not connect to a display");
-
     if config_path.exists() {
-        let provider = gtk::CssProvider::new();
+        let user = gtk::CssProvider::new();
         let gio_file = gio::File::for_path(config_path);
-        provider.load_from_file(&gio_file);
+        user.load_from_file(&gio_file);
         gtk::style_context_add_provider_for_display(
             default_display,
-            &provider,
-            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            &user,
+            gtk::STYLE_PROVIDER_PRIORITY_USER,
         );
     }
-
-    let provider = gtk::CssProvider::new();
-    provider.load_from_data(DEFAULT_STYLES);
-    gtk::style_context_add_provider_for_display(
-        default_display,
-        &provider,
-        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum RenderPreset {
     DesktopFile,
     Images,
