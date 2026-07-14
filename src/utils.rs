@@ -5,9 +5,16 @@ use std::{env, path};
 use crate::constants::{APP_CONFIG_DIR, DEFAULT_STYLES, JOTTO_LIB_CONFIG_DIR, STYLE_FILE};
 
 #[macro_export]
+macro_rules! error_fmt {
+    ($arg:expr) => {
+        format!("[ERROR]: {}", $arg)
+    };
+}
+
+#[macro_export]
 macro_rules! error_log {
     ($arg:expr) => {
-        eprintln!("[ERROR]: {}", $arg)
+        eprintln!("{}", error_fmt!($arg))
     };
 }
 

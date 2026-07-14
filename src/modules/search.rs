@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::fs;
 
-use crate::error_log;
 use crate::model::{self, app_object::EntryData, desktop_entry::DesktopEntry};
 use crate::utils::RenderPreset;
+use crate::{error_fmt, error_log};
 
 pub fn run_search(
     preset: RenderPreset,

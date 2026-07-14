@@ -4,15 +4,15 @@ use gtk4 as gtk;
 
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
-use gtk::{gio, glib, pango};
+use gtk::{gdk, gio, glib, pango};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use std::rc::Rc;
 
 use crate::constants::css_classes;
-use crate::error_log;
 use crate::model::AppObject;
 use crate::modules::search;
 use crate::utils;
+use crate::{error_fmt, error_log};
 
 glib::wrapper! {
     pub struct SpotlightWindow(ObjectSubclass<imp::SpotlightWindow>)
@@ -357,9 +357,12 @@ fn bind_list_item(list_item: &gtk::ListItem, render_preset: utils::RenderPreset)
         }
         utils::RenderPreset::Images => {
             let path = obj.get_img_path().unwrap();
-            let path = path.to_str();
-            label.set_label(path.unwrap());
-            set_icon(&icon, path);
+            label.set_label(path.to_str().unwrap());
+
+            let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(path, 100, 100, true)
+                .expect(error_fmt!("Failed to load and scale image").as_str());
+            let texture = gdk::Texture::for_pixbuf(&pixbuf);
+            icon.set_paintable(Some(&texture));
         }
     }
 }

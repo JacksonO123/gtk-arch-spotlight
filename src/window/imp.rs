@@ -8,9 +8,8 @@ use gtk::subclass::prelude::*;
 use std::cell::{OnceCell, RefCell};
 use std::rc::Rc;
 
-use crate::error_log;
-use crate::error_log_exit;
 use crate::utils;
+use crate::{error_fmt, error_log, error_log_exit};
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::SpotlightWindow)]
