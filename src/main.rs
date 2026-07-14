@@ -44,30 +44,12 @@ fn main() -> glib::ExitCode {
         });
 
         let mut close = false;
-        let mut render_preset: Option<utils::RenderPreset> = None;
-        let mut term: Option<String> = None;
 
         let mut i = 1;
         while i < args.len() {
             let arg = args[i].to_str().unwrap();
             match arg {
                 "--close" => close = true,
-                "--render" => {
-                    let next = if i + 1 < args.len() {
-                        args[i + 1].to_str().unwrap().to_string()
-                    } else {
-                        error_log!("Expected render type after \"--render\"");
-                        return glib::ExitCode::FAILURE;
-                    };
-
-                    i += 1;
-
-                    if render_preset.is_some() {
-                        error_log_exit!("Duplicate render preset options found");
-                    }
-
-                    render_preset = utils::RenderPreset::from_str(&next);
-                }
                 "--config" => {
                     let next = if i + 1 < args.len() {
                         args[i + 1].to_str().unwrap().to_string()
@@ -78,25 +60,7 @@ fn main() -> glib::ExitCode {
 
                     i += 1;
 
-                    config_path = if next.starts_with("~")
-                        && let Some(dir) = &home_dir
-                    {
-                        Some(next.replace("~", dir))
-                    } else {
-                        Some(next.to_string())
-                    };
-                }
-                "--term" => {
-                    let next = if i + 1 < args.len() {
-                        args[i + 1].to_str().unwrap().to_string()
-                    } else {
-                        error_log!("Expected config file after \"--config\"");
-                        return glib::ExitCode::FAILURE;
-                    };
-
-                    i += 1;
-
-                    term = Some(next.to_string());
+                    config_path = Some(utils::resolve_home_relative_path(next, home_dir.as_ref()));
                 }
                 other => error_log!(format!("Unrecognized arg: \"{}\"", other)),
             }
@@ -106,33 +70,26 @@ fn main() -> glib::ExitCode {
 
         let config_file =
             config_path.and_then(|path| fs::read_to_string(path).map(Some).unwrap_or(None));
-        let mut app_config = config_file
-            .map(utils::parse_config)
-            .unwrap_or(utils::AppConfig::new(None, render_preset));
-
-        if term.is_some() {
-            app_config.term = term;
-        }
-
-        if render_preset.is_some() {
-            app_config.render_preset = render_preset;
-        }
+        let Some(app_config) =
+            config_file.map(|file_data| utils::parse_config(file_data, home_dir.as_ref()))
+        else {
+            error_log!("Expected config file");
+            return glib::ExitCode::FAILURE;
+        };
+        let Some(app_config) = app_config else {
+            error_log!("Invalid config");
+            return glib::ExitCode::FAILURE;
+        };
 
         let window = match app.windows().first() {
             Some(win) => win.clone().downcast::<SpotlightWindow>().unwrap(),
-            None => {
-                if app_config.render_preset.is_none() {
-                    error_log_exit!("Expected render preset");
-                };
-
-                match build_window(app, app_config) {
-                    Ok(win) => win,
-                    Err(err) => {
-                        error_log!(err);
-                        return glib::ExitCode::FAILURE;
-                    }
+            None => match build_window(app, app_config) {
+                Ok(win) => win,
+                Err(err) => {
+                    error_log!(err);
+                    return glib::ExitCode::FAILURE;
                 }
-            }
+            },
         };
 
         window.present();
@@ -170,21 +127,21 @@ fn build_window(
     app: &gtk::Application,
     app_config: utils::AppConfig,
 ) -> Result<SpotlightWindow, WindowInitError> {
-    let Some(render_preset) = app_config.render_preset else {
-        error_log_exit!("Expected render preset at build window");
-    };
-
     _ = app.hold();
 
     let home_dir = utils::get_home_dir().ok_or(WindowInitError::CouldNotLocateHomeDir)?;
+    let search_dirs: Vec<_> = app_config
+        .search_dirs
+        .clone()
+        .into_iter()
+        .map(|path| {
+            utils::resolve_home_relative_path(path, Some(&home_dir.to_str().unwrap().to_string()))
+        })
+        .collect();
 
-    let parse_config = match render_preset {
+    let parse_config = match app_config.render_preset {
         utils::RenderPreset::DesktopFile => dir_search_rs::ParseConfig {
-            search_dirs: vec![
-                "/usr/share/applications".to_string(),
-                utils::prefix_path_str(home_dir, ".local/share/applications"),
-                "/usr/local/share/applications".to_string(),
-            ],
+            search_dirs,
             search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
             search_contents: dir_search_rs::SearchContents::FileContents(
                 Some(".desktop".to_string()),
@@ -193,7 +150,7 @@ fn build_window(
             parallel_preference: None,
         },
         _ => dir_search_rs::ParseConfig {
-            search_dirs: vec![utils::prefix_path_str(home_dir, "wallpapers")],
+            search_dirs,
             search_strs: vec!["{search}".to_string()],
             search_contents: dir_search_rs::SearchContents::FileName(false),
             parallel_preference: None,

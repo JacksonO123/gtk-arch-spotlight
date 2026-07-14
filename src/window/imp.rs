@@ -40,10 +40,7 @@ impl ObjectImpl for SpotlightWindow {
         let Some(app_config) = self.app_config.get() else {
             error_log_exit!("Expected app_config at window constructed");
         };
-        let Some(render_preset) = app_config.render_preset else {
-            error_log_exit!("Expected render preset at window constructed");
-        };
-        self.obj().build_ui(render_preset);
+        self.obj().build_ui(app_config.render_preset);
     }
 
     fn properties() -> &'static [glib::ParamSpec] {

@@ -62,13 +62,10 @@ impl SpotlightWindow {
         ) else {
             return;
         };
-        let Some(preset) = app_config.render_preset else {
-            return;
-        };
 
         let items = {
             let mut last = imp.last_search_info.borrow_mut();
-            search::run_search(preset, config, &mut last, text)
+            search::run_search(app_config.render_preset, config, &mut last, text)
         };
 
         store.splice(0, store.n_items(), &items);
@@ -379,7 +376,7 @@ fn bind_list_item(
         }
         utils::RenderPreset::Images => {
             let path = obj.get_img_path().unwrap();
-            if let Some(label_str) = path.iter().last() {
+            if let Some(label_str) = path.iter().next_back() {
                 label.set_label(label_str.to_str().unwrap());
             }
             bind_image(&icon, path, image_cache);
