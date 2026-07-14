@@ -172,7 +172,7 @@ fn parse_config_from_app_config(
             search_dirs,
             search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
             search_contents: dir_search_rs::SearchContents::FileContents(
-                Some(".desktop".to_string()),
+                Some(vec![".desktop".to_string()]),
                 true,
             ),
             parallel_preference: None,
