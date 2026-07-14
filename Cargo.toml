@@ -7,6 +7,7 @@ edition = "2024"
 # v4_12 enables ListView::scroll_to; requires GTK >= 4.12 at runtime.
 gtk4 = { version = "0.11.3", features = ["v4_12"] }
 gtk4-layer-shell = "0.8.0"
+gio = { version ="0.22", features = ["v2_80"] }
 dir-search-rs = { path = "../../dir-search-rs" }
 
 [profile.release]

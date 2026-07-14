@@ -2,7 +2,9 @@ use std::path;
 
 use gtk4 as gtk;
 
-use gtk::{gio, glib, subclass::prelude::*};
+use gtk::{
+    gio, gio::prelude::ApplicationCommandLineExtManual, glib, prelude::*, subclass::prelude::*,
+};
 
 use crate::model::desktop_entry::DesktopEntry;
 
@@ -74,7 +76,10 @@ impl AppObject {
         match imp.entry.borrow().as_ref() {
             Some(EntryData::DesktopFile(entry)) => entry.launch(term_exec),
             Some(EntryData::Image(path)) => {
-                // write
+                if let Some(cmd) = cli_connection {
+                    cmd.print_literal(&format!("{}\n", path.display()));
+                    cmd.set_exit_code(glib::ExitCode::SUCCESS);
+                }
 
                 Ok(())
             }

@@ -116,7 +116,9 @@ impl SpotlightWindow {
             return false;
         };
 
-        match obj.launch(app_config.term.as_deref()) {
+        let cli_connection = imp.cli_connection.take();
+
+        match obj.launch(app_config.term.as_deref(), cli_connection.as_ref()) {
             Ok(()) => {
                 if let Some(entry) = self.imp().entry.get() {
                     entry.delete_text(0, -1);
@@ -132,6 +134,10 @@ impl SpotlightWindow {
     }
 
     pub fn dismiss(&self) {
+        if let Some(cmd) = self.imp().cli_connection.take() {
+            cmd.set_exit_code(glib::ExitCode::FAILURE);
+        }
+
         if let Some(entry) = self.imp().entry.get() {
             entry.delete_text(0, -1);
         }

@@ -604,6 +604,7 @@ name = "spotlight"
 version = "0.1.0"
 dependencies = [
  "dir-search-rs",
+ "gio",
  "gtk4",
  "gtk4-layer-shell",
 ]
