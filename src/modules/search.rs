@@ -24,6 +24,7 @@ pub fn run_search(
     let items = match preset {
         RenderPreset::DesktopFile => build_desktop_items(&raw),
         RenderPreset::Images => build_image_items(&raw),
+        RenderPreset::None => vec![],
     };
 
     *last_search_info = Some(dir_search_rs::LastRunInfo {

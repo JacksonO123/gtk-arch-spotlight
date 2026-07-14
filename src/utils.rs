@@ -58,6 +58,7 @@ pub fn load_css() {
 pub enum RenderPreset {
     DesktopFile,
     Images,
+    None,
 }
 
 impl RenderPreset {
@@ -103,6 +104,16 @@ impl AppConfig {
             term,
             render_preset,
             search_dirs,
+        }
+    }
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            term: Default::default(),
+            render_preset: RenderPreset::None,
+            search_dirs: Default::default(),
         }
     }
 }

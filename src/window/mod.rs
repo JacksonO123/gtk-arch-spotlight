@@ -1,24 +1,24 @@
 mod imp;
 
+use gio::glib::property::PropertySet;
 use gtk4 as gtk;
 
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
-use gtk::{gdk, gio, glib, pango};
+use gtk::{gdk, gio, glib, pango, prelude::*, subclass::prelude::*};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::{
+    cell::RefCell,
+    collections::{HashMap, VecDeque},
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
-use crate::constants::css_classes;
-use crate::model::AppObject;
-use crate::modules::search;
-use crate::utils;
-use crate::{error_fmt, error_log};
-
-const IMAGE_ICON_SIZE: i32 = 136;
-const IMAGE_CACHE_CAP: usize = 512;
+use crate::{
+    constants::{self, css_classes},
+    error_fmt, error_log,
+    model::AppObject,
+    modules::search,
+    utils,
+};
 
 glib::wrapper! {
     pub struct SpotlightWindow(ObjectSubclass<imp::SpotlightWindow>)
@@ -31,7 +31,7 @@ impl SpotlightWindow {
     pub fn new(
         app: &gtk::Application,
         app_config: utils::AppConfig,
-        config: Rc<dir_search_rs::ParseConfig>,
+        config: dir_search_rs::ParseConfig,
     ) -> Self {
         let window: Self = glib::Object::builder()
             .property("application", app)
@@ -54,9 +54,9 @@ impl SpotlightWindow {
 
     pub fn run_search(&self, text: &str) {
         let imp = self.imp();
-        let (Some(app_config), Some(config), Some(store), Some(list_view)) = (
-            imp.app_config.get(),
-            imp.config.get(),
+        let (app_config, config, Some(store), Some(list_view)) = (
+            imp.app_config.borrow(),
+            imp.config.borrow(),
             imp.store.get(),
             imp.list_view.get(),
         ) else {
@@ -65,7 +65,7 @@ impl SpotlightWindow {
 
         let items = {
             let mut last = imp.last_search_info.borrow_mut();
-            search::run_search(app_config.render_preset, config, &mut last, text)
+            search::run_search(app_config.render_preset, &config, &mut last, text)
         };
 
         store.splice(0, store.n_items(), &items);
@@ -105,8 +105,7 @@ impl SpotlightWindow {
 
     pub fn launch_selected(&self) -> bool {
         let imp = self.imp();
-        let (Some(selection), Some(app_config)) = (imp.selection.get(), imp.app_config.get())
-        else {
+        let (Some(selection), app_config) = (imp.selection.get(), imp.app_config.borrow()) else {
             return false;
         };
         let Some(obj) = selection.selected_item().and_downcast::<AppObject>() else {
@@ -144,6 +143,15 @@ impl SpotlightWindow {
         } else {
             self.set_visible(false);
         }
+    }
+
+    pub fn set_list_factory(&self, factory: gtk::SignalListItemFactory) {
+        let imp = self.imp();
+        let Some(list_view) = imp.list_view.get() else {
+            return;
+        };
+
+        list_view.set_factory(Some(&factory));
     }
 
     fn build_ui(&self, render_preset: utils::RenderPreset) {
@@ -188,7 +196,7 @@ impl SpotlightWindow {
             .model(&selection)
             .factory(&build_factory(
                 render_preset,
-                ImageCache::new(IMAGE_CACHE_CAP),
+                ImageCache::new(constants::IMAGE_CACHE_CAP),
             ))
             .single_click_activate(true)
             .css_classes([css_classes::RESULT_LIST])
@@ -294,7 +302,7 @@ impl SpotlightWindow {
     }
 }
 
-fn build_factory(
+pub fn build_factory(
     render_preset: utils::RenderPreset,
     image_cache: ImageCache,
 ) -> gtk::SignalListItemFactory {
@@ -315,7 +323,7 @@ fn build_factory(
             .pixel_size(if render_preset == utils::RenderPreset::DesktopFile {
                 28
             } else {
-                IMAGE_ICON_SIZE
+                constants::IMAGE_ICON_SIZE
             })
             .css_classes([css_classes::RESULT_ICON])
             .build();
@@ -371,16 +379,23 @@ fn bind_list_item(
 
     match render_preset {
         utils::RenderPreset::DesktopFile => {
-            label.set_label(&obj.name().unwrap());
+            let Some(name) = &obj.name() else {
+                return;
+            };
+            label.set_label(name);
             set_icon(&icon, obj.icon().as_deref());
         }
         utils::RenderPreset::Images => {
-            let path = obj.get_img_path().unwrap();
+            let path = obj.get_img_path();
+            let Some(path) = path else {
+                return;
+            };
             if let Some(label_str) = path.iter().next_back() {
                 label.set_label(label_str.to_str().unwrap());
             }
             bind_image(&icon, path, image_cache);
         }
+        utils::RenderPreset::None => {}
     }
 }
 
@@ -399,8 +414,10 @@ fn bind_image(icon: &gtk::Image, path: PathBuf, image_cache: &ImageCache) {
     let cache = image_cache.clone();
     glib::spawn_future_local(async move {
         let load_path = path.clone();
-        let decoded =
-            gio::spawn_blocking(move || decode_scaled_image(&load_path, IMAGE_ICON_SIZE)).await;
+        let decoded = gio::spawn_blocking(move || {
+            decode_scaled_image(&load_path, constants::IMAGE_ICON_SIZE)
+        })
+        .await;
         let Ok(Some(decoded)) = decoded else {
             return;
         };
@@ -453,7 +470,7 @@ fn texture_from_decoded(img: DecodedImage) -> gdk::Texture {
 }
 
 #[derive(Clone)]
-struct ImageCache {
+pub struct ImageCache {
     inner: Rc<RefCell<ImageCacheInner>>,
 }
 
@@ -464,7 +481,7 @@ struct ImageCacheInner {
 }
 
 impl ImageCache {
-    fn new(cap: usize) -> Self {
+    pub fn new(cap: usize) -> Self {
         Self {
             inner: Rc::new(RefCell::new(ImageCacheInner {
                 map: HashMap::new(),

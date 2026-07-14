@@ -5,6 +5,8 @@ pub const APP_CONFIG_DIR: &str = "spotlight";
 pub const CONF_FILE_NAME: &str = "app.conf";
 pub const DIR_START_SENTINEL: &str = "[dir start]";
 pub const DIR_END_SENTINEL: &str = "[dir end]";
+pub const IMAGE_ICON_SIZE: i32 = 136;
+pub const IMAGE_CACHE_CAP: usize = 512;
 
 pub mod css_classes {
     pub const OVERLAY_ROOT: &str = "overlay-root";

@@ -1,10 +1,11 @@
+use gio::glib::property::PropertySet;
 use gtk::{
     gio,
     glib::{self, subclass::types::ObjectSubclassIsExt},
     prelude::*,
 };
 use gtk4 as gtk;
-use std::{fmt, fs, rc::Rc};
+use std::{fmt, fs};
 
 mod constants;
 mod model;
@@ -70,19 +71,38 @@ fn main() -> glib::ExitCode {
 
         let config_file =
             config_path.and_then(|path| fs::read_to_string(path).map(Some).unwrap_or(None));
-        let Some(app_config) =
-            config_file.map(|file_data| utils::parse_config(file_data, home_dir.as_ref()))
-        else {
-            error_log!("Expected config file");
-            return glib::ExitCode::FAILURE;
-        };
-        let Some(app_config) = app_config else {
-            error_log!("Invalid config");
-            return glib::ExitCode::FAILURE;
-        };
+        let app_config = config_file
+            .and_then(|file_data| utils::parse_config(file_data, home_dir.as_ref()))
+            .unwrap_or(utils::AppConfig::new(
+                None,
+                utils::RenderPreset::None,
+                vec![],
+            ));
 
         let window = match app.windows().first() {
-            Some(win) => win.clone().downcast::<SpotlightWindow>().unwrap(),
+            Some(win) => {
+                let existing_win = win.clone().downcast::<SpotlightWindow>().unwrap();
+
+                {
+                    let imp = existing_win.imp();
+                    imp.app_config.set(app_config);
+                    let app_config = imp.app_config.borrow();
+
+                    if let Ok(parse_config) = parse_config_from_app_config(&app_config) {
+                        _ = imp.config.set(parse_config);
+                    }
+
+                    let new_factory = window::build_factory(
+                        app_config.render_preset,
+                        window::ImageCache::new(constants::IMAGE_CACHE_CAP),
+                    );
+
+                    existing_win.set_list_factory(new_factory);
+                    existing_win.run_search("");
+                }
+
+                existing_win
+            }
             None => match build_window(app, app_config) {
                 Ok(win) => win,
                 Err(err) => {
@@ -129,6 +149,14 @@ fn build_window(
 ) -> Result<SpotlightWindow, WindowInitError> {
     _ = app.hold();
 
+    let parse_config = parse_config_from_app_config(&app_config)?;
+
+    Ok(SpotlightWindow::new(app, app_config, parse_config))
+}
+
+fn parse_config_from_app_config(
+    app_config: &utils::AppConfig,
+) -> Result<dir_search_rs::ParseConfig, WindowInitError> {
     let home_dir = utils::get_home_dir().ok_or(WindowInitError::CouldNotLocateHomeDir)?;
     let search_dirs: Vec<_> = app_config
         .search_dirs
@@ -139,7 +167,7 @@ fn build_window(
         })
         .collect();
 
-    let parse_config = match app_config.render_preset {
+    let res = match app_config.render_preset {
         utils::RenderPreset::DesktopFile => dir_search_rs::ParseConfig {
             search_dirs,
             search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
@@ -156,7 +184,6 @@ fn build_window(
             parallel_preference: None,
         },
     };
-    let parse_config = Rc::new(parse_config);
 
-    Ok(SpotlightWindow::new(app, app_config, parse_config))
+    Ok(res)
 }

@@ -3,12 +3,9 @@ use gtk4 as gtk;
 use gtk4::glib::Properties;
 
 use gtk::{gio, glib, subclass::prelude::*};
-use std::{
-    cell::{Cell, OnceCell, RefCell},
-    rc::Rc,
-};
+use std::cell::{Cell, OnceCell, RefCell};
 
-use crate::{error_fmt, error_log, error_log_exit, utils};
+use crate::utils;
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::SpotlightWindow)]
@@ -21,8 +18,8 @@ pub struct SpotlightWindow {
     pub content: OnceCell<gtk::Box>,
 
     #[property(get, set, construct_only)]
-    pub app_config: OnceCell<utils::AppConfig>,
-    pub config: OnceCell<Rc<dir_search_rs::ParseConfig>>,
+    pub app_config: RefCell<utils::AppConfig>,
+    pub config: RefCell<dir_search_rs::ParseConfig>,
     pub last_search_info: RefCell<Option<dir_search_rs::LastRunInfo>>,
     pub cli_connection: Cell<Option<gio::ApplicationCommandLine>>,
 }
@@ -37,9 +34,7 @@ impl ObjectSubclass for SpotlightWindow {
 impl ObjectImpl for SpotlightWindow {
     fn constructed(&self) {
         self.parent_constructed();
-        let Some(app_config) = self.app_config.get() else {
-            error_log_exit!("Expected app_config at window constructed");
-        };
+        let app_config = self.app_config.borrow();
         self.obj().build_ui(app_config.render_preset);
     }
 
