@@ -6,13 +6,19 @@ use gtk::prelude::*;
 use gtk::subclass::prelude::*;
 use gtk::{gdk, gio, glib, pango};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+use std::cell::RefCell;
+use std::collections::{HashMap, VecDeque};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::constants::css_classes;
+use crate::error_log;
 use crate::model::AppObject;
 use crate::modules::search;
 use crate::utils;
-use crate::{error_fmt, error_log};
+
+const IMAGE_ICON_SIZE: i32 = 100;
+const IMAGE_CACHE_CAP: usize = 512;
 
 glib::wrapper! {
     pub struct SpotlightWindow(ObjectSubclass<imp::SpotlightWindow>)
@@ -177,7 +183,10 @@ impl SpotlightWindow {
 
         let list_view = gtk::ListView::builder()
             .model(&selection)
-            .factory(&build_factory(render_preset))
+            .factory(&build_factory(
+                render_preset,
+                ImageCache::new(IMAGE_CACHE_CAP),
+            ))
             .single_click_activate(true)
             .css_classes([css_classes::RESULT_LIST])
             .single_click_activate(false)
@@ -282,7 +291,10 @@ impl SpotlightWindow {
     }
 }
 
-fn build_factory(render_preset: utils::RenderPreset) -> gtk::SignalListItemFactory {
+fn build_factory(
+    render_preset: utils::RenderPreset,
+    image_cache: ImageCache,
+) -> gtk::SignalListItemFactory {
     let factory = gtk::SignalListItemFactory::new();
 
     factory.connect_setup(move |_, list_item| {
@@ -322,7 +334,7 @@ fn build_factory(render_preset: utils::RenderPreset) -> gtk::SignalListItemFacto
             return;
         };
 
-        bind_list_item(list_item, render_preset);
+        bind_list_item(list_item, render_preset, &image_cache);
     });
 
     factory
@@ -336,7 +348,11 @@ fn set_icon(image: &gtk::Image, icon: Option<&str>) {
     }
 }
 
-fn bind_list_item(list_item: &gtk::ListItem, render_preset: utils::RenderPreset) {
+fn bind_list_item(
+    list_item: &gtk::ListItem,
+    render_preset: utils::RenderPreset,
+    image_cache: &ImageCache,
+) {
     let Some(obj) = list_item.item().and_downcast::<AppObject>() else {
         return;
     };
@@ -358,11 +374,117 @@ fn bind_list_item(list_item: &gtk::ListItem, render_preset: utils::RenderPreset)
         utils::RenderPreset::Images => {
             let path = obj.get_img_path().unwrap();
             label.set_label(path.to_str().unwrap());
+            bind_image(&icon, path, image_cache);
+        }
+    }
+}
 
-            let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(path, 100, 100, true)
-                .expect(error_fmt!("Failed to load and scale image").as_str());
-            let texture = gdk::Texture::for_pixbuf(&pixbuf);
+fn bind_image(icon: &gtk::Image, path: PathBuf, image_cache: &ImageCache) {
+    let path_name = path.to_string_lossy().into_owned();
+    icon.set_widget_name(&path_name);
+
+    if let Some(texture) = image_cache.get(&path) {
+        icon.set_paintable(Some(&texture));
+        return;
+    }
+
+    icon.set_icon_name(Some("image-x-generic"));
+
+    let icon_weak = icon.downgrade();
+    let cache = image_cache.clone();
+    glib::spawn_future_local(async move {
+        let load_path = path.clone();
+        let decoded =
+            gio::spawn_blocking(move || decode_scaled_image(&load_path, IMAGE_ICON_SIZE)).await;
+        let Ok(Some(decoded)) = decoded else {
+            return;
+        };
+
+        let texture = texture_from_decoded(decoded);
+        cache.insert(path, texture.clone());
+
+        if let Some(icon) = icon_weak.upgrade()
+            && icon.widget_name().as_str() == path_name.as_str()
+        {
             icon.set_paintable(Some(&texture));
         }
+    });
+}
+
+struct DecodedImage {
+    bytes: Vec<u8>,
+    width: i32,
+    height: i32,
+    rowstride: i32,
+    has_alpha: bool,
+}
+
+fn decode_scaled_image(path: &Path, size: i32) -> Option<DecodedImage> {
+    let pixbuf = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(path, size, size, true).ok()?;
+    Some(DecodedImage {
+        width: pixbuf.width(),
+        height: pixbuf.height(),
+        rowstride: pixbuf.rowstride(),
+        has_alpha: pixbuf.has_alpha(),
+        bytes: pixbuf.read_pixel_bytes().to_vec(),
+    })
+}
+
+fn texture_from_decoded(img: DecodedImage) -> gdk::Texture {
+    let format = if img.has_alpha {
+        gdk::MemoryFormat::R8g8b8a8
+    } else {
+        gdk::MemoryFormat::R8g8b8
+    };
+    let bytes = glib::Bytes::from_owned(img.bytes);
+    gdk::MemoryTexture::new(
+        img.width,
+        img.height,
+        format,
+        &bytes,
+        img.rowstride as usize,
+    )
+    .upcast()
+}
+
+#[derive(Clone)]
+struct ImageCache {
+    inner: Rc<RefCell<ImageCacheInner>>,
+}
+
+struct ImageCacheInner {
+    map: HashMap<PathBuf, gdk::Texture>,
+    order: VecDeque<PathBuf>,
+    cap: usize,
+}
+
+impl ImageCache {
+    fn new(cap: usize) -> Self {
+        Self {
+            inner: Rc::new(RefCell::new(ImageCacheInner {
+                map: HashMap::new(),
+                order: VecDeque::new(),
+                cap,
+            })),
+        }
+    }
+
+    fn get(&self, path: &Path) -> Option<gdk::Texture> {
+        self.inner.borrow().map.get(path).cloned()
+    }
+
+    fn insert(&self, path: PathBuf, texture: gdk::Texture) {
+        let mut inner = self.inner.borrow_mut();
+        if inner.map.contains_key(&path) {
+            return;
+        }
+        while inner.map.len() >= inner.cap {
+            let Some(old) = inner.order.pop_front() else {
+                break;
+            };
+            inner.map.remove(&old);
+        }
+        inner.order.push_back(path.clone());
+        inner.map.insert(path, texture);
     }
 }
