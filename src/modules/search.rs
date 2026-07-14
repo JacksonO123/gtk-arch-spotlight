@@ -59,7 +59,7 @@ fn build_desktop_items(raw: &[fs::DirEntry]) -> Vec<model::AppObject> {
 }
 
 fn build_image_items(raw: &[fs::DirEntry]) -> Vec<model::AppObject> {
-    raw.into_iter()
+    raw.iter()
         .map(|item| model::AppObject::new(EntryData::Image(item.path())))
         .collect()
 }

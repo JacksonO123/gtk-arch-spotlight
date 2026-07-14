@@ -1,8 +1,10 @@
-use gtk::prelude::*;
-use gtk::{gio, glib};
+use gtk::{
+    gio,
+    glib::{self, subclass::types::ObjectSubclassIsExt},
+    prelude::*,
+};
 use gtk4 as gtk;
-use std::fs;
-use std::{fmt, rc::Rc};
+use std::{fmt, fs, rc::Rc};
 
 mod constants;
 mod model;
@@ -105,7 +107,7 @@ fn main() -> glib::ExitCode {
         let config_file =
             config_path.and_then(|path| fs::read_to_string(path).map(Some).unwrap_or(None));
         let mut app_config = config_file
-            .map(|file_data| utils::parse_config(file_data))
+            .map(utils::parse_config)
             .unwrap_or(utils::AppConfig::new(None, render_preset));
 
         if term.is_some() {
@@ -140,6 +142,9 @@ fn main() -> glib::ExitCode {
             window.set_visible(false);
         }
 
+        let window_imp = window.imp();
+        window_imp.cli_connection.set(Some(cmd_line.clone()));
+
         glib::ExitCode::SUCCESS
     });
 
@@ -169,7 +174,7 @@ fn build_window(
         error_log_exit!("Expected render preset at build window");
     };
 
-    let _ = app.hold();
+    _ = app.hold();
 
     let home_dir = utils::get_home_dir().ok_or(WindowInitError::CouldNotLocateHomeDir)?;
 

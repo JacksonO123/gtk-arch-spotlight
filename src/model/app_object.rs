@@ -2,8 +2,7 @@ use std::path;
 
 use gtk4 as gtk;
 
-use gtk::glib;
-use gtk::subclass::prelude::*;
+use gtk::{gio, glib, subclass::prelude::*};
 
 use crate::model::desktop_entry::DesktopEntry;
 
@@ -66,14 +65,18 @@ impl AppObject {
         })
     }
 
-    pub fn launch(&self, term_exec: Option<&str>) -> std::io::Result<()> {
-        match self.imp().entry.borrow().as_ref() {
-            Some(entry) => {
-                if let EntryData::DesktopFile(entry) = entry {
-                    entry.launch(term_exec)
-                } else {
-                    Ok(())
-                }
+    pub fn launch(
+        &self,
+        term_exec: Option<&str>,
+        cli_connection: Option<&gio::ApplicationCommandLine>,
+    ) -> std::io::Result<()> {
+        let imp = self.imp();
+        match imp.entry.borrow().as_ref() {
+            Some(EntryData::DesktopFile(entry)) => entry.launch(term_exec),
+            Some(EntryData::Image(path)) => {
+                // write
+
+                Ok(())
             }
             None => Ok(()),
         }

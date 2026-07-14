@@ -86,9 +86,7 @@ pub fn get_home_dir() -> Option<path::PathBuf> {
 }
 
 pub fn prefix_path_str(dir_path: path::PathBuf, path: &str) -> String {
-    let mut home_clone = dir_path.clone();
-    home_clone.push(path);
-    home_clone.to_str().unwrap().to_string()
+    dir_path.join(path).to_str().unwrap().to_string()
 }
 
 #[derive(Debug, Clone, glib::Boxed)]
@@ -115,19 +113,19 @@ pub fn parse_config(config_file: String) -> AppConfig {
     for line in lines {
         let parts: Vec<_> = line.splitn(2, '=').collect();
         if parts.len() < 2 {
-            if parts[0].len() > 0 {
+            if !parts[0].is_empty() {
                 error_log!(format!("Expected \"=\" after {}", parts[0]));
             }
             continue;
         }
-        if parts[1].len() == 0 {
+        if parts[1].is_empty() {
             error_log!(format!("Expected value after {}=", parts[0]));
         }
 
         match parts[0] {
             "term" => term = Some(parts[1].to_string()),
             "render_preset" => {
-                RenderPreset::from_str(parts[1]).inspect(|val| render_preset = Some(val.clone()));
+                RenderPreset::from_str(parts[1]).inspect(|val| render_preset = Some(*val));
             }
             _ => {
                 error_log!(format!("Unexpected config key {}", parts[0]))

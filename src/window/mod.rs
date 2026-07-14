@@ -12,12 +12,12 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::constants::css_classes;
-use crate::error_log;
 use crate::model::AppObject;
 use crate::modules::search;
 use crate::utils;
+use crate::{error_fmt, error_log};
 
-const IMAGE_ICON_SIZE: i32 = 100;
+const IMAGE_ICON_SIZE: i32 = 136;
 const IMAGE_CACHE_CAP: usize = 512;
 
 glib::wrapper! {
@@ -39,7 +39,7 @@ impl SpotlightWindow {
             .build();
 
         let imp = window.imp();
-        let _ = imp.config.set(config);
+        _ = imp.config.set(config);
 
         window.run_search("");
 
@@ -206,7 +206,7 @@ impl SpotlightWindow {
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vscrollbar_policy(gtk::PolicyType::Automatic)
             .propagate_natural_height(true)
-            .max_content_height(420)
+            .max_content_height(600)
             .css_classes([css_classes::RESULT_SCROLLER])
             .child(&list_view)
             .build();
@@ -235,12 +235,12 @@ impl SpotlightWindow {
         content.append(&entry);
         content.append(&scroller);
 
-        let _ = imp.entry.set(entry);
-        let _ = imp.store.set(store);
-        let _ = imp.selection.set(selection);
-        let _ = imp.list_view.set(list_view);
-        let _ = imp.scroller.set(scroller);
-        let _ = imp.content.set(content.clone());
+        _ = imp.entry.set(entry);
+        _ = imp.store.set(store);
+        _ = imp.selection.set(selection);
+        _ = imp.list_view.set(list_view);
+        _ = imp.scroller.set(scroller);
+        _ = imp.content.set(content.clone());
 
         content
     }
@@ -312,7 +312,7 @@ fn build_factory(
             .pixel_size(if render_preset == utils::RenderPreset::DesktopFile {
                 28
             } else {
-                100
+                IMAGE_ICON_SIZE
             })
             .css_classes([css_classes::RESULT_ICON])
             .build();
@@ -373,7 +373,9 @@ fn bind_list_item(
         }
         utils::RenderPreset::Images => {
             let path = obj.get_img_path().unwrap();
-            label.set_label(path.to_str().unwrap());
+            if let Some(label_str) = path.iter().last() {
+                label.set_label(label_str.to_str().unwrap());
+            }
             bind_image(&icon, path, image_cache);
         }
     }

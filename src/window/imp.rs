@@ -2,14 +2,13 @@ use gtk::prelude::*;
 use gtk4 as gtk;
 use gtk4::glib::Properties;
 
-use gtk::gio;
-use gtk::glib;
-use gtk::subclass::prelude::*;
-use std::cell::{OnceCell, RefCell};
-use std::rc::Rc;
+use gtk::{gio, glib, subclass::prelude::*};
+use std::{
+    cell::{Cell, OnceCell, RefCell},
+    rc::Rc,
+};
 
-use crate::utils;
-use crate::{error_fmt, error_log, error_log_exit};
+use crate::{error_fmt, error_log, error_log_exit, utils};
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::SpotlightWindow)]
@@ -25,6 +24,7 @@ pub struct SpotlightWindow {
     pub app_config: OnceCell<utils::AppConfig>,
     pub config: OnceCell<Rc<dir_search_rs::ParseConfig>>,
     pub last_search_info: RefCell<Option<dir_search_rs::LastRunInfo>>,
+    pub cli_connection: Cell<Option<gio::ApplicationCommandLine>>,
 }
 
 #[glib::object_subclass]
