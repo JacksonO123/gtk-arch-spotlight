@@ -45,6 +45,8 @@ fn main() -> glib::ExitCode {
         });
 
         let mut close = false;
+        let mut term: Option<String> = None;
+        let mut write_stdout = false;
 
         let mut i = 1;
         while i < args.len() {
@@ -63,6 +65,21 @@ fn main() -> glib::ExitCode {
 
                     config_path = Some(utils::resolve_home_relative_path(next, home_dir.as_ref()));
                 }
+                "--term" => {
+                    let next = if i + 1 < args.len() {
+                        args[i + 1].to_str().unwrap().to_string()
+                    } else {
+                        error_log!("Expected config file after \"--config\"");
+                        return glib::ExitCode::FAILURE;
+                    };
+
+                    i += 1;
+
+                    term = Some(next);
+                }
+                "--write-stdout" => {
+                    write_stdout = true;
+                }
                 other => error_log!(format!("Unrecognized arg: \"{}\"", other)),
             }
 
@@ -71,13 +88,22 @@ fn main() -> glib::ExitCode {
 
         let config_file =
             config_path.and_then(|path| fs::read_to_string(path).map(Some).unwrap_or(None));
-        let app_config = config_file
+        let mut app_config = config_file
             .and_then(|file_data| utils::parse_config(file_data, home_dir.as_ref()))
             .unwrap_or(utils::AppConfig::new(
                 None,
                 utils::RenderPreset::None,
                 vec![],
+                false,
             ));
+
+        if term.is_some() {
+            app_config.term = term;
+        }
+
+        if write_stdout {
+            app_config.write_stdout = true;
+        }
 
         let window = match app.windows().first() {
             Some(win) => {
@@ -85,11 +111,12 @@ fn main() -> glib::ExitCode {
 
                 {
                     let imp = existing_win.imp();
+                    imp.root_instance.set(false);
                     imp.app_config.set(app_config);
                     let app_config = imp.app_config.borrow();
 
                     if let Ok(parse_config) = parse_config_from_app_config(&app_config) {
-                        _ = imp.config.set(parse_config);
+                        imp.config.set(parse_config);
                     }
 
                     let new_factory = window::build_factory(
@@ -103,7 +130,7 @@ fn main() -> glib::ExitCode {
 
                 existing_win
             }
-            None => match build_window(app, app_config) {
+            None => match build_window(app, app_config, true) {
                 Ok(win) => win,
                 Err(err) => {
                     error_log!(err);
@@ -146,12 +173,18 @@ impl fmt::Display for WindowInitError {
 fn build_window(
     app: &gtk::Application,
     app_config: utils::AppConfig,
+    is_root_instance: bool,
 ) -> Result<SpotlightWindow, WindowInitError> {
     _ = app.hold();
 
     let parse_config = parse_config_from_app_config(&app_config)?;
 
-    Ok(SpotlightWindow::new(app, app_config, parse_config))
+    Ok(SpotlightWindow::new(
+        app,
+        app_config,
+        parse_config,
+        is_root_instance,
+    ))
 }
 
 fn parse_config_from_app_config(

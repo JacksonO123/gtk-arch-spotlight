@@ -32,6 +32,7 @@ impl SpotlightWindow {
         app: &gtk::Application,
         app_config: utils::AppConfig,
         config: dir_search_rs::ParseConfig,
+        is_root_instance: bool,
     ) -> Self {
         let window: Self = glib::Object::builder()
             .property("application", app)
@@ -39,7 +40,8 @@ impl SpotlightWindow {
             .build();
 
         let imp = window.imp();
-        _ = imp.config.set(config);
+        imp.config.set(config);
+        imp.root_instance.set(is_root_instance);
 
         window.run_search("");
 
@@ -113,11 +115,23 @@ impl SpotlightWindow {
         };
 
         let cli_connection = imp.cli_connection.take();
+        let is_root_instance = imp.root_instance.get();
 
-        match obj.launch(app_config.term.as_deref(), cli_connection.as_ref()) {
-            Ok(()) => {
+        match obj.launch(app_config.term.as_deref()) {
+            Ok(path) => {
                 if let Some(entry) = self.imp().entry.get() {
                     entry.delete_text(0, -1);
+                }
+
+                if let Some(path) = path
+                    && app_config.write_stdout
+                    && let Some(cmd) = cli_connection
+                {
+                    cmd.print_literal(&format!("{}\n", path.display()));
+                    cmd.set_exit_code(glib::ExitCode::SUCCESS);
+                    if is_root_instance {
+                        std::process::exit(0);
+                    }
                 }
 
                 true

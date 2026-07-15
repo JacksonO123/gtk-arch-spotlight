@@ -1,10 +1,8 @@
-use std::path;
+use std::{io, path};
 
 use gtk4 as gtk;
 
-use gtk::{
-    gio, gio::prelude::ApplicationCommandLineExtManual, glib, prelude::*, subclass::prelude::*,
-};
+use gtk::{glib, subclass::prelude::*};
 
 use crate::model::desktop_entry::DesktopEntry;
 
@@ -67,23 +65,15 @@ impl AppObject {
         })
     }
 
-    pub fn launch(
-        &self,
-        term_exec: Option<&str>,
-        cli_connection: Option<&gio::ApplicationCommandLine>,
-    ) -> std::io::Result<()> {
+    pub fn launch(&self, term_exec: Option<&str>) -> io::Result<Option<path::PathBuf>> {
         let imp = self.imp();
         match imp.entry.borrow().as_ref() {
-            Some(EntryData::DesktopFile(entry)) => entry.launch(term_exec),
-            Some(EntryData::Image(path)) => {
-                if let Some(cmd) = cli_connection {
-                    cmd.print_literal(&format!("{}\n", path.display()));
-                    cmd.set_exit_code(glib::ExitCode::SUCCESS);
-                }
-
-                Ok(())
+            Some(EntryData::DesktopFile(entry)) => {
+                entry.launch(term_exec)?;
+                Ok(Some(entry.path.clone()))
             }
-            None => Ok(()),
+            Some(EntryData::Image(path)) => Ok(Some(path.clone())),
+            None => Ok(None),
         }
     }
 

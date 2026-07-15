@@ -92,6 +92,7 @@ pub struct AppConfig {
     pub term: Option<String>,
     pub render_preset: RenderPreset,
     pub search_dirs: Vec<String>,
+    pub write_stdout: bool,
 }
 
 impl AppConfig {
@@ -99,11 +100,13 @@ impl AppConfig {
         term: Option<String>,
         render_preset: RenderPreset,
         search_dirs: Vec<String>,
+        write_stdout: bool,
     ) -> Self {
         Self {
             term,
             render_preset,
             search_dirs,
+            write_stdout,
         }
     }
 }
@@ -111,9 +114,10 @@ impl AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            term: Default::default(),
+            term: None,
             render_preset: RenderPreset::None,
-            search_dirs: Default::default(),
+            search_dirs: Vec::new(),
+            write_stdout: false,
         }
     }
 }
@@ -123,6 +127,7 @@ pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<Ap
     let mut term: Option<String> = None;
     let mut render_preset: Option<RenderPreset> = None;
     let mut search_dirs: Vec<String> = vec![];
+    let mut write_stdout = false;
 
     let mut i = 0;
     while i < lines.len() {
@@ -169,6 +174,7 @@ pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<Ap
             "render_preset" => {
                 RenderPreset::from_str(value).inspect(|val| render_preset = Some(*val));
             }
+            "write_stdout" => write_stdout = value == "true",
             _ => {
                 error_log!(format!("Unexpected config key {}", parts[0]))
             }
@@ -177,7 +183,7 @@ pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<Ap
         i += 1;
     }
 
-    render_preset.map(|preset| AppConfig::new(term, preset, search_dirs))
+    render_preset.map(|preset| AppConfig::new(term, preset, search_dirs, write_stdout))
 }
 
 pub fn resolve_home_relative_path(path: String, home_dir: Option<&String>) -> String {

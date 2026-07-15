@@ -22,6 +22,7 @@ pub struct SpotlightWindow {
     pub config: RefCell<dir_search_rs::ParseConfig>,
     pub last_search_info: RefCell<Option<dir_search_rs::LastRunInfo>>,
     pub cli_connection: Cell<Option<gio::ApplicationCommandLine>>,
+    pub root_instance: Cell<bool>,
 }
 
 #[glib::object_subclass]
