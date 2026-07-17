@@ -5,7 +5,7 @@ use gtk4::glib::Properties;
 use gtk::{gio, glib, subclass::prelude::*};
 use std::cell::{Cell, OnceCell, RefCell};
 
-use crate::utils;
+use crate::modules::config;
 
 #[derive(Properties, Default)]
 #[properties(wrapper_type = super::SpotlightWindow)]
@@ -16,9 +16,10 @@ pub struct SpotlightWindow {
     pub list_view: OnceCell<gtk::ListView>,
     pub scroller: OnceCell<gtk::ScrolledWindow>,
     pub content: OnceCell<gtk::Box>,
+    pub math_revealer: OnceCell<gtk::Revealer>,
 
     #[property(get, set, construct_only)]
-    pub app_config: RefCell<utils::AppConfig>,
+    pub app_config: RefCell<config::AppConfig>,
     pub config: RefCell<dir_search_rs::ParseConfig>,
     pub last_search_info: RefCell<Option<dir_search_rs::LastRunInfo>>,
     pub cli_connection: Cell<Option<gio::ApplicationCommandLine>>,

@@ -16,8 +16,7 @@ use crate::{
     constants::{self, css_classes},
     error_fmt, error_log,
     model::AppObject,
-    modules::search,
-    utils,
+    modules::{config, parser, search},
 };
 
 glib::wrapper! {
@@ -30,7 +29,7 @@ glib::wrapper! {
 impl SpotlightWindow {
     pub fn new(
         app: &gtk::Application,
-        app_config: utils::AppConfig,
+        app_config: config::AppConfig,
         config: dir_search_rs::ParseConfig,
         is_root_instance: bool,
     ) -> Self {
@@ -78,6 +77,39 @@ impl SpotlightWindow {
         }
         if has_results {
             list_view.scroll_to(0, gtk::ListScrollFlags::empty(), None);
+        }
+    }
+
+    pub fn try_calculate_math(&self, expr_str: &str) {
+        let imp = self.imp();
+        let Some(math_revealer) = imp.math_revealer.get() else {
+            return;
+        };
+        let Some(label_wrapper) = math_revealer.child() else {
+            return;
+        };
+
+        let math_res = parser::evaluate_str(expr_str);
+        let mut show_math = false;
+        let math_str = if let Ok(Some(result)) = math_res {
+            show_math = true;
+            &result.to_string()
+        } else {
+            "Err"
+        };
+        show_math = show_math || parser::contains_operator(expr_str);
+
+        if show_math {
+            let Some(label_child) = label_wrapper.first_child().and_downcast::<gtk::Label>() else {
+                return;
+            };
+
+            label_child.set_label(math_str);
+            math_revealer.set_reveal_child(true);
+            label_wrapper.remove_css_class(css_classes::TRANSPARENT);
+        } else {
+            math_revealer.set_reveal_child(false);
+            label_wrapper.add_css_class(css_classes::TRANSPARENT);
         }
     }
 
@@ -168,7 +200,7 @@ impl SpotlightWindow {
         list_view.set_factory(Some(&factory));
     }
 
-    fn build_ui(&self, render_preset: utils::RenderPreset) {
+    fn build_ui(&self, render_preset: config::RenderPreset) {
         self.set_title(Some("Spotlight"));
         self.add_css_class(css_classes::OVERLAY_ROOT);
 
@@ -200,7 +232,7 @@ impl SpotlightWindow {
         self.set_keyboard_mode(KeyboardMode::Exclusive);
     }
 
-    fn build_content(&self, render_preset: utils::RenderPreset) -> gtk::Box {
+    fn build_content(&self, render_preset: config::RenderPreset) -> gtk::Box {
         let imp = self.imp();
 
         let store = gio::ListStore::new::<AppObject>();
@@ -246,9 +278,27 @@ impl SpotlightWindow {
             self,
             move |entry| {
                 let query = entry.text();
-                window.run_search(query.trim());
+                let text = query.trim();
+                window.run_search(text);
+                window.try_calculate_math(text);
             }
         ));
+
+        let revealer_label = gtk::Label::builder()
+            .css_classes([css_classes::MATH_LABEL])
+            .hexpand(true)
+            .build();
+        let revealer_label_wrapper = gtk::Box::builder()
+            .css_classes([css_classes::MATH_LABEL_WRAPPER])
+            .hexpand(true)
+            .build();
+        revealer_label_wrapper.append(&revealer_label);
+        let math_revealer = gtk::Revealer::builder()
+            .child(&revealer_label_wrapper)
+            .transition_duration(constants::ANIMATION_DURATION)
+            .transition_type(gtk4::RevealerTransitionType::SlideUp)
+            .reveal_child(false)
+            .build();
 
         let content = gtk::Box::builder()
             .orientation(gtk::Orientation::Vertical)
@@ -258,6 +308,7 @@ impl SpotlightWindow {
             .css_classes([css_classes::WINDOW_CONTENTS])
             .build();
         content.append(&entry);
+        content.append(&math_revealer);
         content.append(&scroller);
 
         _ = imp.entry.set(entry);
@@ -265,6 +316,7 @@ impl SpotlightWindow {
         _ = imp.selection.set(selection);
         _ = imp.list_view.set(list_view);
         _ = imp.scroller.set(scroller);
+        _ = imp.math_revealer.set(math_revealer);
         _ = imp.content.set(content.clone());
 
         content
@@ -317,7 +369,7 @@ impl SpotlightWindow {
 }
 
 pub fn build_factory(
-    render_preset: utils::RenderPreset,
+    render_preset: config::RenderPreset,
     image_cache: ImageCache,
 ) -> gtk::SignalListItemFactory {
     let factory = gtk::SignalListItemFactory::new();
@@ -334,7 +386,7 @@ pub fn build_factory(
             .build();
 
         let icon = gtk::Image::builder()
-            .pixel_size(if render_preset == utils::RenderPreset::DesktopFile {
+            .pixel_size(if render_preset == config::RenderPreset::DesktopFile {
                 28
             } else {
                 constants::IMAGE_ICON_SIZE
@@ -375,7 +427,7 @@ fn set_icon(image: &gtk::Image, icon: Option<&str>) {
 
 fn bind_list_item(
     list_item: &gtk::ListItem,
-    render_preset: utils::RenderPreset,
+    render_preset: config::RenderPreset,
     image_cache: &ImageCache,
 ) {
     let Some(obj) = list_item.item().and_downcast::<AppObject>() else {
@@ -392,14 +444,14 @@ fn bind_list_item(
     };
 
     match render_preset {
-        utils::RenderPreset::DesktopFile => {
+        config::RenderPreset::DesktopFile => {
             let Some(name) = &obj.name() else {
                 return;
             };
             label.set_label(name);
             set_icon(&icon, obj.icon().as_deref());
         }
-        utils::RenderPreset::Images => {
+        config::RenderPreset::Images => {
             let path = obj.get_img_path();
             let Some(path) = path else {
                 return;
@@ -409,7 +461,7 @@ fn bind_list_item(
             }
             bind_image(&icon, path, image_cache);
         }
-        utils::RenderPreset::None => {}
+        config::RenderPreset::None => {}
     }
 }
 

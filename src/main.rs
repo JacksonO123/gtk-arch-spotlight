@@ -13,6 +13,7 @@ mod modules;
 mod utils;
 mod window;
 
+use modules::config;
 use window::SpotlightWindow;
 
 fn main() -> glib::ExitCode {
@@ -89,10 +90,10 @@ fn main() -> glib::ExitCode {
         let config_file =
             config_path.and_then(|path| fs::read_to_string(path).map(Some).unwrap_or(None));
         let mut app_config = config_file
-            .and_then(|file_data| utils::parse_config(file_data, home_dir.as_ref()))
-            .unwrap_or(utils::AppConfig::new(
+            .and_then(|file_data| config::parse_config(file_data, home_dir.as_ref()))
+            .unwrap_or(config::AppConfig::new(
                 None,
-                utils::RenderPreset::None,
+                config::RenderPreset::None,
                 vec![],
                 false,
             ));
@@ -172,7 +173,7 @@ impl fmt::Display for WindowInitError {
 
 fn build_window(
     app: &gtk::Application,
-    app_config: utils::AppConfig,
+    app_config: config::AppConfig,
     is_root_instance: bool,
 ) -> Result<SpotlightWindow, WindowInitError> {
     _ = app.hold();
@@ -188,7 +189,7 @@ fn build_window(
 }
 
 fn parse_config_from_app_config(
-    app_config: &utils::AppConfig,
+    app_config: &config::AppConfig,
 ) -> Result<dir_search_rs::ParseConfig, WindowInitError> {
     let home_dir = utils::get_home_dir().ok_or(WindowInitError::CouldNotLocateHomeDir)?;
     let search_dirs: Vec<_> = app_config
@@ -201,7 +202,7 @@ fn parse_config_from_app_config(
         .collect();
 
     let res = match app_config.render_preset {
-        utils::RenderPreset::DesktopFile => dir_search_rs::ParseConfig {
+        config::RenderPreset::DesktopFile => dir_search_rs::ParseConfig {
             search_dirs,
             search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
             search_contents: dir_search_rs::SearchContents::FileContents(

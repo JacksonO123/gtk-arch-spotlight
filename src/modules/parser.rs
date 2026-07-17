@@ -1,10 +1,9 @@
 use std::iter::Peekable;
 
 #[derive(Debug)]
-enum ParseError {
+pub enum ParseError {
     InvalidNumber,
-    UnexpectedCharacter(char),
-    ExpectedTokenFoundNothing,
+    UnexpectedCharacter,
     UnexpectedToken,
 }
 
@@ -13,11 +12,11 @@ enum Operator {
     Exponent,
     Mult,
     Div,
-    Add,
     Sub,
+    Add,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum Node {
     Number(f64),
     Expr(Box<Node>, Operator, Box<Node>),
@@ -69,7 +68,7 @@ where
             {
                 return Err(ParseError::UnexpectedToken);
             } else {
-                res
+                res.map(|node| Node::Group(Box::new(node)))
             }
         }
         _ => {
@@ -116,11 +115,9 @@ where
         return Ok(None);
     };
 
-    Ok(Some(Node::Expr(
-        Box::new(unit_node),
-        operator,
-        Box::new(rhs),
-    )))
+    let result_expr = Node::Expr(Box::new(unit_node), operator, Box::new(rhs));
+    let result_expr = normalize(result_expr);
+    Ok(Some(result_expr))
 }
 
 fn tokenize<'a>(expr_str: &'a str) -> Result<Vec<Token<'a>>, ParseError> {
@@ -172,7 +169,7 @@ fn tokenize<'a>(expr_str: &'a str) -> Result<Vec<Token<'a>>, ParseError> {
                     let slice = &expr_str[start..end];
                     Token::Number(slice)
                 } else {
-                    return Err(ParseError::UnexpectedCharacter(char));
+                    return Err(ParseError::UnexpectedCharacter);
                 }
             }
         };
@@ -183,14 +180,96 @@ fn tokenize<'a>(expr_str: &'a str) -> Result<Vec<Token<'a>>, ParseError> {
     Ok(tokens)
 }
 
+fn normalize(node: Node) -> Node {
+    match node {
+        Node::Number(_) => node,
+        Node::Group(inner) => normalize(*inner),
+        Node::Expr(left, operator, right) => {
+            let left = normalize(*left);
+            let right = normalize(*right);
+            rotate_precedence(left, operator, right)
+        }
+    }
+}
+
+fn rotate_precedence(left: Node, operator: Operator, right: Node) -> Node {
+    match right {
+        Node::Expr(right_left, right_operator, right_right) if operator <= right_operator => {
+            let new_left = rotate_precedence(left, operator, *right_left);
+            Node::Expr(Box::new(new_left), right_operator, right_right)
+        }
+        _ => Node::Expr(Box::new(left), operator, Box::new(right)),
+    }
+}
+
+fn evaluate_node(node: Node) -> f64 {
+    match node {
+        Node::Number(num) => num,
+        Node::Expr(left, operator, right) => {
+            let left = evaluate_node(*left);
+            let right = evaluate_node(*right);
+            match operator {
+                Operator::Add => left + right,
+                Operator::Sub => left - right,
+                Operator::Mult => left * right,
+                Operator::Div => left / right,
+                Operator::Exponent => left.powf(right),
+            }
+        }
+        Node::Group(inner) => evaluate_node(*inner),
+    }
+}
+
+pub fn evaluate_str(expr_str: &str) -> Result<Option<f64>, ParseError> {
+    let node = parse_str(expr_str)?;
+    Ok(node.map(evaluate_node))
+}
+
+pub fn contains_operator(expr_str: &str) -> bool {
+    for char in expr_str.chars() {
+        if matches!(char, '+' | '-' | '*' | '/' | '^') {
+            return true;
+        }
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::modules::parser::parse_str;
+
+    use crate::modules::parser::{self, Node, Operator};
+    use std::boxed::Box;
 
     #[test]
-    fn test_parser() {
-        let test_str = "2 + 2 / (4 * 3 ^ 1";
-        let node = parse_str(test_str);
+    fn test_parser() -> Result<(), parser::ParseError> {
+        let test_str = "1 * 2 - 1 + 3 / 2";
+        let node = parser::parse_str(test_str)?.unwrap();
+        let rhs = Node::Expr(
+            Box::new(Node::Expr(
+                Box::new(Node::Expr(
+                    Box::new(Node::Number(1.0)),
+                    Operator::Mult,
+                    Box::new(Node::Number(2.0)),
+                )),
+                Operator::Sub,
+                Box::new(Node::Number(1.0)),
+            )),
+            Operator::Add,
+            Box::new(Node::Expr(
+                Box::new(Node::Number(3.0)),
+                Operator::Div,
+                Box::new(Node::Number(2.0)),
+            )),
+        );
+
+        assert_eq!(node, rhs);
+
         println!("GOT :: {:?}", node);
+        let result = parser::evaluate_node(node);
+        assert_eq!(result, 2.5);
+        println!("RESULT :: {}", result);
+
+        Ok(())
     }
 }
