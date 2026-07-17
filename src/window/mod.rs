@@ -98,7 +98,7 @@ impl SpotlightWindow {
         let mut show_math = false;
         let math_str = if let Ok(Some(result)) = math_res {
             show_math = true;
-            &result.to_string()
+            &format!("{:.45}", result.to_string())
         } else {
             "Err"
         };

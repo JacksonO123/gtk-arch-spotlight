@@ -92,7 +92,7 @@
             rgba(27, 27, 27, .5) 50%);
     border-radius: var(--border-radius);
     box-shadow: inset 0 0 0 1px var(--border-main);
-    font-size: 32px;
+    font-size: 25px;
 }
 
 .math-label-wrapper {
