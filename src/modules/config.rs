@@ -32,6 +32,7 @@ pub struct AppConfig {
     pub render_preset: RenderPreset,
     pub search_dirs: Vec<String>,
     pub write_stdout: bool,
+    pub math_enabled: bool,
 }
 
 impl AppConfig {
@@ -40,12 +41,14 @@ impl AppConfig {
         render_preset: RenderPreset,
         search_dirs: Vec<String>,
         write_stdout: bool,
+        math_enabled: bool,
     ) -> Self {
         Self {
             term,
             render_preset,
             search_dirs,
             write_stdout,
+            math_enabled,
         }
     }
 }
@@ -57,6 +60,7 @@ impl Default for AppConfig {
             render_preset: RenderPreset::None,
             search_dirs: Vec::new(),
             write_stdout: false,
+            math_enabled: false,
         }
     }
 }
@@ -67,6 +71,7 @@ pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<Ap
     let mut render_preset: Option<RenderPreset> = None;
     let mut search_dirs: Vec<String> = vec![];
     let mut write_stdout = false;
+    let mut math_enabled = false;
 
     let mut i = 0;
     while i < lines.len() {
@@ -114,6 +119,7 @@ pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<Ap
                 RenderPreset::from_str(value).inspect(|val| render_preset = Some(*val));
             }
             "write_stdout" => write_stdout = value == "true",
+            "math_enabled" => math_enabled = value == "true",
             _ => {
                 error_log!(format!("Unexpected config key {}", parts[0]))
             }
@@ -122,5 +128,6 @@ pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<Ap
         i += 1;
     }
 
-    render_preset.map(|preset| AppConfig::new(term, preset, search_dirs, write_stdout))
+    render_preset
+        .map(|preset| AppConfig::new(term, preset, search_dirs, write_stdout, math_enabled))
 }

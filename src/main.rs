@@ -96,6 +96,7 @@ fn main() -> glib::ExitCode {
                 config::RenderPreset::None,
                 vec![],
                 false,
+                false,
             ));
 
         if term.is_some() {

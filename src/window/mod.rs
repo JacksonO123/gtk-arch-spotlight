@@ -82,6 +82,11 @@ impl SpotlightWindow {
 
     pub fn try_calculate_math(&self, expr_str: &str) {
         let imp = self.imp();
+
+        if !imp.app_config.borrow().math_enabled {
+            return;
+        }
+
         let Some(math_revealer) = imp.math_revealer.get() else {
             return;
         };
