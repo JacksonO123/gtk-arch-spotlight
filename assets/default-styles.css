@@ -1,3 +1,8 @@
+window {
+    background-color: transparent;
+    backdrop-filter: blur(10px);
+}
+
 :root {
     --border-radius: 6px;
     --outer-border: #020508;
