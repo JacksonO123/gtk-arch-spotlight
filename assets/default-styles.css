@@ -72,9 +72,9 @@ window {
     background:
         linear-gradient(to bottom,
             #fff 0,
-            rgba(129, 129, 129, .5) 3%,
-            rgba(56, 56, 56, .5) 50%,
-            rgba(27, 27, 27, .5) 50%);
+            rgba(129, 129, 129, .75) 3%,
+            rgba(56, 56, 56, .75) 50%,
+            rgba(8, 8, 8, .75) 50%);
     background-color: transparent;
     border: 1px solid var(--outer-border);
     box-shadow: inset 0 0 0 1px var(--border-main);
@@ -92,9 +92,9 @@ window {
     margin-bottom: 4px;
     background: linear-gradient(to bottom,
             #fff 0,
-            rgba(129, 129, 129, .5) 3%,
-            rgba(56, 56, 56, .5) 50%,
-            rgba(27, 27, 27, .5) 50%);
+            rgba(129, 129, 129, .75) 3%,
+            rgba(56, 56, 56, .75) 50%,
+            rgba(8, 8, 8, .75) 50%);
     border-radius: var(--border-radius);
     box-shadow: inset 0 0 0 1px var(--border-main);
     font-size: 25px;
