@@ -63,7 +63,7 @@ pub fn resolve_home_relative_path(
             .iter()
             .collect::<Vec<_>>()
             .into_iter()
-            .skip(2)
+            .skip(1)
             .collect();
         return home_dir.join(new_path);
     }
