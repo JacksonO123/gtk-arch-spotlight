@@ -1,6 +1,6 @@
 use gtk::{gdk, gio, glib};
-use gtk4 as gtk;
-use std::{env, path};
+use gtk4::{self as gtk, IconTheme, Settings};
+use std::path;
 
 use crate::constants::{APP_CONFIG_DIR, DEFAULT_STYLES, JOTTO_LIB_CONFIG_DIR, STYLE_FILE};
 
@@ -54,21 +54,32 @@ pub fn load_css() {
     }
 }
 
-pub fn get_home_dir() -> Option<path::PathBuf> {
-    #[cfg(not(unix))]
-    {
-        panic!("Unsupported os. I hope you are not using windows.");
+pub fn resolve_home_relative_path(
+    rel_path: path::PathBuf,
+    home_dir: &path::PathBuf,
+) -> path::PathBuf {
+    if rel_path.starts_with("~/") {
+        let new_path: path::PathBuf = rel_path
+            .iter()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .skip(2)
+            .collect();
+        return home_dir.join(new_path);
     }
 
-    env::var_os("HOME").map(path::PathBuf::from)
+    rel_path
 }
 
-pub fn resolve_home_relative_path(path: String, home_dir: Option<&String>) -> String {
-    if path.starts_with("~")
-        && let Some(dir) = &home_dir
-    {
-        return path.replacen("~", dir, 1);
-    }
+pub fn setup_icons() {
+    let display = gdk::Display::default().expect("no display");
 
-    path
+    let settings = Settings::for_display(&display);
+    settings.set_gtk_icon_theme_name(Some("crystal-remix-icon-theme"));
+
+    let icon_theme = IconTheme::for_display(&display);
+    icon_theme.add_search_path(glib::user_data_dir().join("icons"));
+
+    println!("has icon: {}", icon_theme.has_icon("your-icon-name"));
+    println!("search path: {:?}", icon_theme.search_path());
 }

@@ -1,3 +1,5 @@
+use std::{path, str::FromStr};
+
 use gio::glib;
 
 use crate::{constants, error_fmt, error_log, utils};
@@ -30,7 +32,7 @@ impl RenderPreset {
 pub struct AppConfig {
     pub term: Option<String>,
     pub render_preset: RenderPreset,
-    pub search_dirs: Vec<String>,
+    pub search_dirs: Vec<path::PathBuf>,
     pub write_stdout: bool,
     pub math_enabled: bool,
 }
@@ -39,7 +41,7 @@ impl AppConfig {
     pub fn new(
         term: Option<String>,
         render_preset: RenderPreset,
-        search_dirs: Vec<String>,
+        search_dirs: Vec<path::PathBuf>,
         write_stdout: bool,
         math_enabled: bool,
     ) -> Self {
@@ -65,11 +67,11 @@ impl Default for AppConfig {
     }
 }
 
-pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<AppConfig> {
+pub fn parse_config(config_file: String, home_dir: &path::PathBuf) -> Option<AppConfig> {
     let lines: Vec<_> = config_file.split('\n').collect();
     let mut term: Option<String> = None;
     let mut render_preset: Option<RenderPreset> = None;
-    let mut search_dirs: Vec<String> = vec![];
+    let mut search_dirs: Vec<path::PathBuf> = vec![];
     let mut write_stdout = false;
     let mut math_enabled = false;
 
@@ -86,9 +88,10 @@ pub fn parse_config(config_file: String, home_dir: Option<&String>) -> Option<Ap
 
             let mut current_path = lines[i];
             while i < lines.len() && current_path != constants::DIR_END_SENTINEL {
+                let current_path_buf = path::PathBuf::from_str(current_path).unwrap();
                 search_dirs.push(utils::resolve_home_relative_path(
-                    current_path.to_string(),
-                    home_dir,
+                    current_path_buf,
+                    &home_dir,
                 ));
 
                 i += 1;

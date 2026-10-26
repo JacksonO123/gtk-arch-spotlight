@@ -4,8 +4,8 @@ use gtk::{
     glib::{self, subclass::types::ObjectSubclassIsExt},
     prelude::*,
 };
-use gtk4 as gtk;
-use std::{fmt, fs};
+use gtk4::{self as gtk};
+use std::{fs, path};
 
 mod constants;
 mod model;
@@ -34,16 +34,11 @@ fn main() -> glib::ExitCode {
     app.connect_command_line(move |app, cmd_line| {
         let args: Vec<_> = cmd_line.arguments();
 
-        let home_dir = utils::get_home_dir().map(|dir| dir.to_str().unwrap().to_string());
-        let mut config_path = home_dir.as_ref().map(|dir| {
-            format!(
-                "{}/.config/{}/{}/{}",
-                dir,
-                constants::JOTTO_LIB_CONFIG_DIR,
-                constants::APP_CONFIG_DIR,
-                constants::CONF_FILE_NAME
-            )
-        });
+        let home_dir = glib::home_dir();
+        let mut config_path = home_dir
+            .join(constants::JOTTO_LIB_CONFIG_DIR)
+            .join(constants::APP_CONFIG_DIR)
+            .join(constants::CONF_FILE_NAME);
 
         let mut close = false;
         let mut term: Option<String> = None;
@@ -56,7 +51,7 @@ fn main() -> glib::ExitCode {
                 "--close" => close = true,
                 "--config" => {
                     let next = if i + 1 < args.len() {
-                        args[i + 1].to_str().unwrap().to_string()
+                        path::PathBuf::from(&args[i + 1])
                     } else {
                         error_log!("Expected config file after \"--config\"");
                         return glib::ExitCode::FAILURE;
@@ -64,7 +59,7 @@ fn main() -> glib::ExitCode {
 
                     i += 1;
 
-                    config_path = Some(utils::resolve_home_relative_path(next, home_dir.as_ref()));
+                    config_path = utils::resolve_home_relative_path(next, &home_dir);
                 }
                 "--term" => {
                     let next = if i + 1 < args.len() {
@@ -87,10 +82,9 @@ fn main() -> glib::ExitCode {
             i += 1;
         }
 
-        let config_file =
-            config_path.and_then(|path| fs::read_to_string(path).map(Some).unwrap_or(None));
+        let config_file = fs::read_to_string(config_path).map(Some).unwrap_or(None);
         let mut app_config = config_file
-            .and_then(|file_data| config::parse_config(file_data, home_dir.as_ref()))
+            .and_then(|file_data| config::parse_config(file_data, &home_dir))
             .unwrap_or(config::AppConfig::new(
                 None,
                 config::RenderPreset::None,
@@ -117,9 +111,8 @@ fn main() -> glib::ExitCode {
                     imp.app_config.set(app_config);
                     let app_config = imp.app_config.borrow();
 
-                    if let Ok(parse_config) = parse_config_from_app_config(&app_config) {
-                        imp.config.set(parse_config);
-                    }
+                    let parse_config = parse_config_from_app_config(&app_config);
+                    imp.config.set(parse_config);
 
                     let new_factory = window::build_factory(
                         app_config.render_preset,
@@ -132,13 +125,10 @@ fn main() -> glib::ExitCode {
 
                 existing_win
             }
-            None => match build_window(app, app_config, true) {
-                Ok(win) => win,
-                Err(err) => {
-                    error_log!(err);
-                    return glib::ExitCode::FAILURE;
-                }
-            },
+            None => {
+                utils::setup_icons();
+                build_window(app, app_config, true)
+            }
         };
 
         window.present();
@@ -157,52 +147,28 @@ fn main() -> glib::ExitCode {
     app.run()
 }
 
-#[derive(Debug)]
-enum WindowInitError {
-    CouldNotLocateHomeDir,
-}
-
-impl fmt::Display for WindowInitError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let str_to_write = match self {
-            WindowInitError::CouldNotLocateHomeDir => "could not locate home dir",
-        };
-
-        write!(f, "{}", str_to_write)
-    }
-}
-
 fn build_window(
     app: &gtk::Application,
     app_config: config::AppConfig,
     is_root_instance: bool,
-) -> Result<SpotlightWindow, WindowInitError> {
+) -> SpotlightWindow {
     _ = app.hold();
 
-    let parse_config = parse_config_from_app_config(&app_config)?;
+    let parse_config = parse_config_from_app_config(&app_config);
 
-    Ok(SpotlightWindow::new(
-        app,
-        app_config,
-        parse_config,
-        is_root_instance,
-    ))
+    SpotlightWindow::new(app, app_config, parse_config, is_root_instance)
 }
 
-fn parse_config_from_app_config(
-    app_config: &config::AppConfig,
-) -> Result<dir_search_rs::ParseConfig, WindowInitError> {
-    let home_dir = utils::get_home_dir().ok_or(WindowInitError::CouldNotLocateHomeDir)?;
+fn parse_config_from_app_config(app_config: &config::AppConfig) -> dir_search_rs::ParseConfig {
+    let home_dir = glib::home_dir();
     let search_dirs: Vec<_> = app_config
         .search_dirs
         .clone()
         .into_iter()
-        .map(|path| {
-            utils::resolve_home_relative_path(path, Some(&home_dir.to_str().unwrap().to_string()))
-        })
+        .map(|path| utils::resolve_home_relative_path(path, &home_dir))
         .collect();
 
-    let res = match app_config.render_preset {
+    match app_config.render_preset {
         config::RenderPreset::DesktopFile => dir_search_rs::ParseConfig {
             search_dirs,
             search_strs: vec!["type=application".to_string(), "name={search}".to_string()],
@@ -218,7 +184,5 @@ fn parse_config_from_app_config(
             search_contents: dir_search_rs::SearchContents::FileName(false),
             parallel_preference: None,
         },
-    };
-
-    Ok(res)
+    }
 }
